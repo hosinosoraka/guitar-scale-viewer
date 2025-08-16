@@ -3,407 +3,758 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ギタースケール表示（Ver1.1）</title>
+  <title>Guitar Scale Viewer Ver 1.02</title>
   <style>
     :root{
       /* Dark (default) palette */
       --bg:#0f1115; --panel:#171a21; --ink:#e6e6e6; --muted:#9aa4b2; --accent:#4f8cff;
       --board1:#1b222d; --board2:#121821; --nut:#e2e8f0; --fret:#293042; --string:#d1d7e1;
-      --pos-border:#ffffff; /* ★ ダーク時はポジション縁を白 */
-      --label-ink:#000000;  /* ラベル文字色（円内の文字） */
-
-      /* Degree colors（両テーマで固定） */
-      --deg-root:#3b82f6;   /* blue */
-      --deg-third:#22c55e;  /* green */
-      --deg-fifth:#ef4444;  /* red */
-      --deg-seventh:#ec4899;/* pink */
-      --deg-other:#32d296;  /* default */
-      --deg-blues:#ffd166;  /* b5 */
+      --pos-border:#ffffff;  /* ダーク時のポジション縁：白 */
+      --label-ink:#000000;   /* 円内の文字色 */
+      --deg-root:#3b82f6; --deg-third:#22c55e; --deg-fifth:#ef4444; --deg-seventh:#ec4899; --deg-other:#32d296; --deg-blues:#ffd166;
     }
-    /* Light theme palette（必要なら body に light クラスを手動付与で使用可） */
-    body.light{
-      --bg:#ffffff; --panel:#f6f7fb; --ink:#0f1115; --muted:#5b6778; --accent:#2d6bff;
-      --board1:#f3f4f7; --board2:#e9ecf2; --nut:#aab3c7; --fret:#cfd6e4; --string:#9aa4b2;
-      --pos-border:#0b0e14; /* ★ ライト時はポジション縁を黒 */
-      --label-ink:#0b0e14;
-    }
-    * { box-sizing: border-box; }
+    *{ box-sizing:border-box; }
     body{
       margin:0; background:var(--bg); color:var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
       line-height:1.5; display:flex; flex-direction:column; min-height:100vh;
     }
-    header{ padding:12px 16px; border-bottom:1px solid #232735; background:linear-gradient(180deg, rgba(21,24,35,.85), rgba(20,23,32,.85)); }
-    .toolbar{ display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items:end; max-width:90vw; margin:0 auto; }
+    header{
+      padding:12px 16px; border-bottom:1px solid #232735;
+      background:linear-gradient(180deg, rgba(21,24,35,.85), rgba(20,23,32,.85));
+    }
+    .toolbar{
+      display:grid; gap:10px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      align-items:end; max-width:90vw; margin:0 auto;
+    }
     label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
-    select, button { width:100%; padding:10px 12px; border-radius:12px; border:1px solid #2a2f40; background:var(--panel); color:var(--ink); outline:none; }
-    select:focus, button:focus { border-color: var(--accent); }
+    input[type="text"], select, button{
+      width:100%; padding:10px 12px; border-radius:12px;
+      border:1px solid #2a2f40; background:var(--panel); color:var(--ink); outline:none;
+    }
+    select:focus, button:focus, input[type="text"]:focus { border-color: var(--accent); }
+
     main{ padding:16px; display:grid; place-items:center; }
-    .card{ width:100%; max-width:90vw; background:var(--panel); border:1px solid #232735; border-radius:16px; padding:12px; }
-    canvas{ width:100%; height:360px; display:block; border-radius:12px; background:linear-gradient(180deg,var(--board1),var(--board2)); border:1px solid #1f2432; }
+    .card{
+      width:100%; max-width:90vw; background:var(--panel);
+      border:1px solid #232735; border-radius:16px; padding:12px; margin-bottom:16px;
+    }
+
+    canvas{ width:100%; height:360px; display:block; border-radius:12px; background:transparent; }
+
     .legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-top:8px; }
     .chip{ display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; border:1px solid #2a2f40; background:var(--panel); }
     .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
     .foot { color:var(--muted); text-align:center; font-size:12px; margin-top:8px; }
+
+    .positions{ width:100%; max-width:90vw; margin:0 auto; display:flex; flex-direction:column; gap:16px; }
+    .pos-card{ background:var(--panel); border:1px solid #232735; border-radius:12px; padding:12px; }
+    .pos-title{ font-size:12px; color:var(--muted); margin:4px 0 8px; display:flex; gap:10px; align-items:center; justify-content:space-between; }
+    .pos-name{
+      color:var(--ink);
+      font-weight:600;
+      outline: none;
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .pos-name:focus{
+      box-shadow: 0 0 0 2px rgba(79,140,255,0.35);
+      background: rgba(79,140,255,0.08);
+    }
+    .pos-canvas{ width:100%; height:360px; display:block; border-radius:12px; }
+    .pos-actions{ display:flex; gap:8px; }
+    .icon-btn{
+      border:1px solid #2a2f40; background:transparent; color:var(--ink);
+      padding:6px 10px; border-radius:10px; cursor:pointer;
+    }
+    .icon-btn:hover{ border-color:var(--accent); }
+
+    /* プリセット一覧（details/summary） */
+    details.dropdown{
+      border:1px solid #2a2f40; border-radius:12px; background:var(--panel);
+      overflow:hidden;
+    }
+    details.dropdown > summary{
+      list-style:none; cursor:pointer; padding:10px 12px; border-radius:12px;
+      outline:none; user-select:none;
+    }
+    details.dropdown[open] > summary{
+      border-bottom:1px solid #2a2f40; border-bottom-left-radius:0; border-bottom-right-radius:0;
+    }
+    details.dropdown .menu{ max-height:320px; overflow:auto; padding:4px 0; }
+    .preset-item{
+      display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+      border-bottom:1px solid #232735; cursor:pointer;
+    }
+    .preset-item:last-child{ border-bottom:none; }
+    .preset-item:hover{ background: rgba(255,255,255,0.04); }
+    .preset-meta{ flex:1; min-width:0; }
+    .preset-name{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .preset-sub{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .row-actions{ display:flex; gap:8px; }
+    .empty{ color:var(--muted); padding:12px; font-size:13px; }
+    .notice{ color:#9aa4b2; font-size:12px; margin-top:8px; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="toolbar">
+<header>
+  <div class="toolbar">
+    <div>
+      <label for="keySelect">キー</label>
+      <select id="keySelect"></select>
+    </div>
+    <div>
+      <label for="scaleSelect">スケール</label>
+      <select id="scaleSelect"></select>
+    </div>
+    <div>
+      <label for="labelMode">ラベル表示</label>
+      <select id="labelMode">
+        <option value="note">音名</option>
+        <option value="degree">度数</option>
+        <option value="both" selected>両方</option>
+      </select>
+    </div>
+    <div>
+      <label for="fretCount">フレット数（12〜24）</label>
+      <select id="fretCount"></select>
+    </div>
+    <div>
+      <label>&nbsp;</label>
+      <button id="resetHiddenMain">上段の非表示リセット</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 上段：全体指板 -->
+  <div class="card">
+    <canvas id="fretboard" width="1400" height="520"></canvas>
+    <div class="legend" id="legend"></div>
+    <div class="foot">開放弦はナット左の丸。クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.02</div>
+  </div>
+
+  <!-- プリセット保存/読み込み -->
+  <div class="card">
+    <div class="toolbar" style="grid-template-columns: 1fr 1fr; padding:0; max-width:unset;">
       <div>
-        <label for="keySelect">キー</label>
-        <select id="keySelect"></select>
-      </div>
-      <div>
-        <label for="scaleSelect">スケール</label>
-        <select id="scaleSelect"></select>
-      </div>
-      <div>
-        <label for="labelMode">ラベル表示</label>
-        <select id="labelMode">
-          <option value="note">音名</option>
-          <option value="degree">度数</option>
-          <option value="both" selected>両方</option>
-        </select>
-      </div>
-      <div>
-        <label for="fretCount">フレット数（12〜24）</label>
-        <select id="fretCount"></select>
+        <label for="presetName">プリセット名</label>
+        <input id="presetName" type="text" list="presetNames" placeholder="例）Cメジャー_7ポジ_v1" />
+        <datalist id="presetNames"></datalist>
+        <div class="notice">同名で保存すると上書きします（キー/スケール/フレット/ラベル表示/各キャンバスの非表示/ポジション名を保存）。</div>
       </div>
       <div>
         <label>&nbsp;</label>
-        <button id="resetHidden">非表示リセット</button>
+        <div style="display:flex; gap:8px;">
+          <button id="btnSavePreset">この状態を保存</button>
+          <button id="btnExportPreset">JSONを書き出し</button>
+          <button id="btnImportPreset">JSONを読み込み</button>
+          <input id="importFile" type="file" accept="application/json" style="display:none;">
+        </div>
       </div>
     </div>
-  </header>
 
-  <main>
-    <div class="card">
-      <canvas id="fretboard" width="1400" height="520"></canvas>
-      <div class="legend" id="legend"></div>
-      <div class="foot">開放弦はナット左の丸。クリックでポジションの非表示/再表示ができます。</div>
+    <div style="margin-top:12px;">
+      <details id="presetDropdown" class="dropdown">
+        <summary>ローカル保存済みプリセット ▾</summary>
+        <div id="presetList" class="menu"><div class="empty">（保存されたプリセットはありません）</div></div>
+      </details>
     </div>
-  </main>
 
-  <script>
-    /* ===== サイズをここで一括管理 ===== */
-    const NOTE_RADIUS = 18;  // PC時のポジション丸（半径）
-    const INLAY_R     = 5.5; // フレットインレイ（通常）
-    const INLAY_R_12  = 6.5; // 12/24Fなどのダブルドット
-    const LABEL_OFFSET_FACTOR = 0.42; // 両方表示の上下オフセット = r * 係数
+    <div class="notice" id="presetMeta"></div>
+  </div>
 
-    // 画面幅が狭い（スマホ）時はポジション丸だけ70%に
-    function getNoteRadius(){
-      return (window.innerWidth <= 768) ? NOTE_RADIUS * 0.7 : NOTE_RADIUS;
-    }
+  <!-- 下段：7ポジション（名前は編集可） -->
+  <section class="positions" id="positions">
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-6-I" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-6-I" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-6-I"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-6-M" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-6-M" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-6-M"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-6-P" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-6-P" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-6-P"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-I" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-5-I" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-I"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-M" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-5-M" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-M"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-P" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-5-P" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-P"></canvas>
+    </div>
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-4-I" spellcheck="false" title="クリックして名前を編集"></span>
+        <div class="pos-actions"><button data-pos="pos-4-I" class="icon-btn btnClear">非表示リセット</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-4-I"></canvas>
+    </div>
+  </section>
+</main>
 
-    // Notes & Scales (with degrees)
-    const N_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-    const N_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
-    const KEYS = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+<script>
+  /* ===== 基本設定 ===== */
+  const STRINGS = 6;
+  const NOTE_RADIUS = 18;  // PC
+  const INLAY_R = 5.5, INLAY_R_12 = 6.5;
+  const LABEL_OFFSET_FACTOR = 0.42;
+  function getNoteRadius(){ return (window.innerWidth <= 768) ? NOTE_RADIUS * 0.7 : NOTE_RADIUS; }
+  let dpr = 1; function syncDPR(){ dpr = Math.max(1, Math.min(2, window.devicePixelRatio||1)); }
 
-    const SCALES = {
-      "Major (Ionian)": { intervals:[0,2,4,5,7,9,11], degrees:["1","9th","3","11th","5","13th","7"] },
-      "Natural Minor":  { intervals:[0,2,3,5,7,8,10], degrees:["1","9th","m3","11th","5","m6","m7"] },
-      "Major Pentatonic": { intervals:[0,2,4,7,9], degrees:["1","9th","3","5","13th"] },
-      "Minor Pentatonic": { intervals:[0,3,5,7,10], degrees:["1","m3","11th","5","m7"] },
-      "Blues": { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] },
-      "Dorian": { intervals:[0,2,3,5,7,9,10], degrees:["1","9th","m3","11th","5","13th","m7"] },
-      "Phrygian": { intervals:[0,1,3,5,7,8,10], degrees:["1","b9th","m3","11th","5","m6","m7"] },
-      "Lydian": { intervals:[0,2,4,6,7,9,11], degrees:["1","9th","3","#4","5","13th","7"] },
-      "Mixolydian": { intervals:[0,2,4,5,7,9,10], degrees:["1","9th","3","11th","5","13th","m7"] },
-      "Locrian": { intervals:[0,1,3,5,6,8,10], degrees:["1","b9th","m3","11th","b5","m6","m7"] },
-      // Melodic Minor modes
-      "Melodic Minor": { intervals:[0,2,3,5,7,9,11], degrees:["1","9th","m3","11th","5","13th","7"] },
-      "Dorian b2": { intervals:[0,1,3,5,7,9,10], degrees:["1","b9th","m3","11th","5","13th","m7"] },
-      "Lydian #5": { intervals:[0,2,4,6,8,9,11], degrees:["1","9th","3","#4","#5","13th","7"] },
-      "Lydian b7": { intervals:[0,2,4,6,7,9,10], degrees:["1","9th","3","#4","5","13th","m7"] },
-      "Mixolydian b6": { intervals:[0,2,4,5,7,8,10], degrees:["1","9th","3","11th","5","m6","m7"] },
-      "Locrian #2": { intervals:[0,2,3,5,6,8,10], degrees:["1","9th","m3","11th","b5","m6","m7"] },
-      "Altered (Super Locrian)": { intervals:[0,1,3,4,6,8,10], degrees:["1","b9th","m3","b4","b5","m6","m7"] },
-      // Harmonic Minor modes
-      "Harmonic Minor": { intervals:[0,2,3,5,7,8,11], degrees:["1","9th","m3","11th","5","m6","7"] },
-      "Locrian #6": { intervals:[0,1,3,5,6,9,10], degrees:["1","b9th","m3","11th","b5","13th","m7"] },
-      "Ionian #5": { intervals:[0,2,4,5,8,9,11], degrees:["1","9th","3","11th","#5","13th","7"] },
-      "Dorian #4 (Ukrainian)": { intervals:[0,2,3,6,7,9,10], degrees:["1","9th","m3","#4","5","13th","m7"] },
-      "Phrygian Dominant (Mixolydian b9 b13)": { intervals:[0,1,4,5,7,8,10], degrees:["1","b9th","3","11th","5","m6","m7"] },
-      "Lydian #2": { intervals:[0,3,4,6,7,9,11], degrees:["1","#2","3","#4","5","13th","7"] },
-      "Ultralocrian (Super Locrian bb7)": { intervals:[0,1,3,4,6,8,9], degrees:["1","b9th","m3","b4","b5","m6","bb7"] }
+  /* デフォルトのポジション名 */
+  const POSITION_IDS = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I'];
+  const DEFAULT_TITLES = {
+    'pos-6-I':'タイトル１　（例　6弦スタート｜人差し指）等',
+    'pos-6-M':'タイトル２',
+    'pos-6-P':'タイトル３',
+    'pos-5-I':'タイトル４',
+    'pos-5-M':'タイトル５',
+    'pos-5-P':'タイトル６',
+    'pos-4-I':'タイトル７',
+  };
+
+  /* 音名・スケール */
+  const N_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const N_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
+  const KEYS    = [...N_SHARP];
+  const SCALES = {
+    "Major (Ionian)": { intervals:[0,2,4,5,7,9,11], degrees:["1","9th","3","11th","5","13th","7"] },
+    "Natural Minor":  { intervals:[0,2,3,5,7,8,10], degrees:["1","9th","m3","11th","5","m6","m7"] },
+    "Major Pentatonic": { intervals:[0,2,4,7,9], degrees:["1","9th","3","5","13th"] },
+    "Minor Pentatonic": { intervals:[0,3,5,7,10], degrees:["1","m3","11th","5","m7"] },
+    "Blues": { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] },
+    "Dorian": { intervals:[0,2,3,5,7,9,10], degrees:["1","9th","m3","11th","5","13th","m7"] },
+    "Phrygian": { intervals:[0,1,3,5,7,8,10], degrees:["1","b9th","m3","11th","5","m6","m7"] },
+    "Lydian": { intervals:[0,2,4,6,7,9,11], degrees:["1","9th","3","#4","5","13th","7"] },
+    "Mixolydian": { intervals:[0,2,4,5,7,9,10], degrees:["1","9th","3","11th","5","13th","m7"] },
+    "Locrian": { intervals:[0,1,3,5,6,8,10], degrees:["1","b9th","m3","11th","b5","m6","m7"] },
+    "Melodic Minor": { intervals:[0,2,3,5,7,9,11], degrees:["1","9th","m3","11th","5","13th","7"] },
+    "Dorian b2": { intervals:[0,1,3,5,7,9,10], degrees:["1","b9th","m3","11th","5","13th","m7"] },
+    "Lydian #5": { intervals:[0,2,4,6,8,9,11], degrees:["1","9th","3","#4","#5","13th","7"] },
+    "Lydian b7": { intervals:[0,2,4,6,7,9,10], degrees:["1","9th","3","#4","5","13th","m7"] },
+    "Mixolydian b6": { intervals:[0,2,4,5,7,8,10], degrees:["1","9th","3","11th","5","m6","m7"] },
+    "Locrian #2": { intervals:[0,2,3,5,6,8,10], degrees:["1","9th","m3","11th","b5","m6","m7"] },
+    "Altered (Super Locrian)": { intervals:[0,1,3,4,6,8,10], degrees:["1","b9th","m3","b4","b5","m6","m7"] },
+    "Harmonic Minor": { intervals:[0,2,3,5,7,8,11], degrees:["1","9th","m3","11th","5","m6","7"] },
+    "Locrian #6": { intervals:[0,1,3,5,6,9,10], degrees:["1","b9th","m3","11th","b5","13th","m7"] },
+    "Ionian #5": { intervals:[0,2,4,5,8,9,11], degrees:["1","9th","3","11th","#5","13th","7"] },
+    "Dorian #4 (Ukrainian)": { intervals:[0,2,3,6,7,9,10], degrees:["1","9th","m3","#4","5","13th","m7"] },
+    "Phrygian Dominant (Mixolydian b9 b13)": { intervals:[0,1,4,5,7,8,10], degrees:["1","b9th","3","11th","5","m6","m7"] },
+    "Lydian #2": { intervals:[0,3,4,6,7,9,11], degrees:["1","#2","3","#4","5","13th","7"] },
+    "Ultralocrian (Super Locrian bb7)": { intervals:[0,1,3,4,6,8,9], degrees:["1","b9th","m3","b4","b5","m6","bb7"] }
+  };
+  const TUNING = ["E","B","G","D","A","E"]; // 1弦→6弦
+
+  /* ===== DOM ===== */
+  const keySel = document.getElementById('keySelect');
+  const scaleSel = document.getElementById('scaleSelect');
+  const labelModeSel = document.getElementById('labelMode');
+  const fretSel = document.getElementById('fretCount');
+  const resetHiddenMain = document.getElementById('resetHiddenMain');
+  const mainCanvas = document.getElementById('fretboard');
+  const mainCtx = mainCanvas.getContext('2d');
+
+  const presetNameInput = document.getElementById('presetName');
+  const presetNamesDatalist = document.getElementById('presetNames');
+  const presetDropdown = document.getElementById('presetDropdown');
+  const presetList = document.getElementById('presetList');
+  const presetMeta = document.getElementById('presetMeta');
+  const btnSavePreset = document.getElementById('btnSavePreset');
+  const btnExportPreset = document.getElementById('btnExportPreset');
+  const btnImportPreset = document.getElementById('btnImportPreset');
+  const importFile = document.getElementById('importFile');
+
+  // 下段ポジション名の要素
+  const posNameEls = {};
+  document.querySelectorAll('.pos-name').forEach(el => { posNameEls[el.dataset.pos] = el; });
+
+  // セレクト初期化
+  KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
+  Object.keys(SCALES).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; scaleSel.appendChild(o); });
+  for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
+  keySel.value='C'; scaleSel.value='Major (Ionian)'; fretSel.value='16';
+
+  // デフォルト名を反映
+  function applyDefaultTitles(){
+    Object.entries(DEFAULT_TITLES).forEach(([id, name])=>{
+      if (posNameEls[id]) posNameEls[id].textContent = name;
+    });
+  }
+
+  // 非表示セット
+  const hiddenMap = { main:new Set() }; POSITION_IDS.forEach(id=> hiddenMap[id]=new Set());
+
+  /* ===== 共通描画ユーティリティ ===== */
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  function styleSnapshot(){
+    return {
+      board1: css('--board1'), board2: css('--board2'),
+      nut: css('--nut'), fret: css('--fret'), string: css('--string'),
+      posBorder: css('--pos-border'), labelInk: css('--label-ink'),
+      muted: css('--muted'),
+      degRoot: css('--deg-root'), degThird: css('--deg-third'),
+      degFifth: css('--deg-fifth'), degSeventh: css('--deg-seventh'),
+      degOther: css('--deg-other'), degBlues: css('--deg-blues')
     };
+  }
+  function roundRect(ctx, x, y, w, h, r){
+    if (typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+    ctx.beginPath();
+    ctx.moveTo(x + r.tl, y);
+    ctx.lineTo(x + w - r.tr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+    ctx.lineTo(x + w, y + h - r.br);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+    ctx.lineTo(x + r.bl, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+    ctx.lineTo(x, y + r.tl);
+    ctx.quadraticCurveTo(x, y, x + r.tl, y);
+    ctx.closePath();
+  }
+  function degreeColor(i, S){
+    if (i===0) return S.degRoot;
+    if (i===3||i===4) return S.degThird;
+    if (i===7) return S.degFifth;
+    if (i===10||i===11) return S.degSeventh;
+    if (i===6) return S.degBlues;
+    return S.degOther;
+  }
+  function drawNote(ctx, cx, cy, r, pc, root, degreeText, mode, keyName, S){
+    const interval = (pc - root + 12) % 12;
+    const fill = degreeColor(interval, S);
+    const flats = ['F','Bb','Eb','Ab','Db','Gb','Cb'].includes(keyName);
+    const noteName = (flats?N_FLAT:N_SHARP)[pc];
 
-    // Tuning: 1st(top) -> 6th(bottom)
-    const TUNING = ["E","B","G","D","A","E"];
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = S.posBorder;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
-    // DOM
-    const keySel = document.getElementById('keySelect');
-    const scaleSel = document.getElementById('scaleSelect');
-    const labelModeSel = document.getElementById('labelMode');
-    const fretSel = document.getElementById('fretCount');
-    const resetHidden = document.getElementById('resetHidden');
-    const canvas = document.getElementById('fretboard');
-    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = S.labelInk;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-    // Populate selects
-    KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
-    Object.keys(SCALES).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; scaleSel.appendChild(o); });
-    for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
+    if (mode === 'note'){
+      ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
+      ctx.fillText(noteName, cx, cy);
+    } else if (mode === 'degree'){
+      ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
+      ctx.fillText(degreeText || '', cx, cy);
+    } else {
+      const dy = r * LABEL_OFFSET_FACTOR;
+      ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
+      ctx.fillText(degreeText || '', cx, cy - dy);
+      ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
+      ctx.fillText(noteName,       cx, cy + dy);
+    }
+  }
+  function layoutOn(ctx, canvasEl, strings, frets, S){
+    const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
+    ctx.clearRect(0,0,w,h);
+    const M = {left: 120, right: 24, top: 36, bottom: 56};
+    const fbY = M.top, fbH = h - M.top - M.bottom;
+    const baseX = M.left, fbW = w - baseX - M.right;
 
-    // Defaults: C Major (Ionian), 16 frets
-    keySel.value = 'C';
-    scaleSel.value = 'Major (Ionian)';
-    fretSel.value = '16';
+    const boardX = 20, boardW = w - 40;
+    const R = 16;
+    const grd = ctx.createLinearGradient(0, fbY, 0, fbY + fbH);
+    grd.addColorStop(0, S.board1); grd.addColorStop(1, S.board2);
+    ctx.fillStyle = grd;
+    roundRect(ctx, boardX, fbY, boardW, fbH, R); ctx.fill();
+    ctx.strokeStyle = '#1f2432'; ctx.lineWidth = 1; ctx.stroke();
 
-    // Events
-    ['input','change'].forEach(evt=> [keySel, scaleSel, fretSel, labelModeSel].forEach(el=> el.addEventListener(evt, draw)));
-    let dpr = 1; function syncDPR(){ dpr = Math.max(1, Math.min(2, window.devicePixelRatio||1)); }
-    window.addEventListener('resize', ()=>{ syncDPR(); draw(); }); syncDPR();
+    ctx.fillStyle = S.nut; ctx.fillRect(baseX - 10, fbY, 10, fbH);
 
-    const hidden = new Set(); // "s:f"  (f=0 is open)
-
-    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-
-    function buildScale(root, name){
-      const {intervals, degrees} = SCALES[name];
-      const pcs = new Set(intervals.map(i => (root + i) % 12));
-      const degreeMap = new Map();
-      intervals.forEach((i, idx)=>{
-        degreeMap.set((root + i) % 12, degrees[idx]);
-      });
-      return {pcs, degreeMap};
+    ctx.strokeStyle = S.fret; ctx.lineWidth = 2;
+    for(let f=1; f<=frets; f++){
+      const x = baseX + fbW * (f / frets);
+      ctx.beginPath(); ctx.moveTo(x, fbY); ctx.lineTo(x, fbY + fbH); ctx.stroke();
     }
 
-    function layout(strings, frets){
-      const w = canvas.width / dpr, h = canvas.height / dpr;
-      ctx.clearRect(0,0,w,h);
-      const M = {left: 120, right: 24, top: 36, bottom: 56};
-      const fbY = M.top;
-      const fbH = h - M.top - M.bottom;
-      const baseX = M.left;
-      const fbW = w - baseX - M.right;
+    const cellW = fbW / frets;
+    const openCx = baseX - cellW * 0.5;
 
-      // Board
-      const boardX = 20, boardW = w - 40;
-      const grd = ctx.createLinearGradient(0, fbY, 0, fbY + fbH);
-      grd.addColorStop(0, css('--board1'));
-      grd.addColorStop(1, css('--board2'));
-      ctx.fillStyle = grd;
-      roundRect(ctx, boardX, fbY, boardW, fbH, 16, true, true);
-
-      // Nut
-      ctx.fillStyle = css('--nut');
-      ctx.fillRect(baseX - 10, fbY, 10, fbH);
-
-      // Frets 1..N
-      ctx.strokeStyle = css('--fret');
-      ctx.lineWidth = 2;
-      for(let f=1; f<=frets; f++){
-        const x = baseX + fbW * (f / frets);
-        ctx.beginPath(); ctx.moveTo(x, fbY); ctx.lineTo(x, fbY + fbH); ctx.stroke();
-      }
-
-      // Open center + cell width
-      const cellW = fbW / frets;
-      const openCx = baseX - cellW * 0.5;
-
-      // Fret numbers bottom
-      ctx.fillStyle = css('--muted');
-      ctx.font = '12px system-ui';
-      ctx.textAlign = 'center';
-      const footY = fbY + fbH + 16;
-      ctx.fillText('0', openCx, footY);
-      for (let f=1; f<=frets; f++){
-        const prevX = baseX + fbW * ((f-1)/frets);
-        const thisX = baseX + fbW * (f/frets);
-        const cx = (prevX + thisX) / 2;
-        ctx.fillText(String(f), cx, footY);
-      }
-
-      // Position dots (inlays)
-      ctx.fillStyle = '#3b80ff66';
-      const dots = [3,5,7,9,12,15,17,19,21,24];
-      dots.forEach(f=>{
-        if (f>frets) return;
-        const prevX = baseX + fbW * ((f-1)/frets);
-        const thisX = baseX + fbW * (f/frets);
-        const xCenter = (prevX + thisX) / 2;
-        const is12 = f%12===0;
-        if (is12){
-          ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.33, INLAY_R_12, 0, Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.66, INLAY_R_12, 0, Math.PI*2); ctx.fill();
-        } else {
-          ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.5,  INLAY_R,    0, Math.PI*2); ctx.fill();
-        }
-      });
-
-      // Strings
-      for(let s=0; s<strings; s++){
-        const y = fbY + fbH * (s+0.5)/strings;
-        ctx.strokeStyle = css('--string');
-        ctx.lineWidth = 1 + (strings - s)*0.4;
-        ctx.beginPath(); ctx.moveTo(baseX, y); ctx.lineTo(baseX + fbW, y); ctx.stroke();
-      }
-
-      return {fbY, fbH, baseX, fbW, openCx};
+    ctx.fillStyle = S.muted; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    const footY = fbY + fbH + 16; ctx.fillText('0', openCx, footY);
+    for (let f=1; f<=frets; f++){
+      const prevX = baseX + fbW * ((f-1)/frets);
+      const thisX = baseX + fbW * (f/frets);
+      ctx.fillText(String(f), (prevX + thisX)/2, footY);
     }
 
-    function roundRect(ctx, x, y, w, h, r, fill, stroke) {
-      if (typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
-      ctx.beginPath();
-      ctx.moveTo(x + r.tl, y);
-      ctx.lineTo(x + w - r.tr, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
-      ctx.lineTo(x + w, y + h - r.br);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
-      ctx.lineTo(x + r.bl, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
-      ctx.lineTo(x, y + r.tl);
-      ctx.quadraticCurveTo(x, y, x + r.tl, y);
-      ctx.closePath();
-      if (fill) ctx.fill();
-      if (stroke) ctx.stroke();
-    }
-
-    function draw(){
-      const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-      const strings = 6;
-      const root = KEYS.indexOf(keySel.value);
-      const scaleName = scaleSel.value;
-      const labelMode = labelModeSel.value;
-
-      // retina
-      const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
-      canvas.width = Math.floor(cssW * dpr); canvas.height = Math.floor(cssH * dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
-
-      const g = layout(strings, frets);
-      const {pcs, degreeMap} = buildScale(root, scaleName);
-
-      // notes（ポジションマーク本体）
-      const r = getNoteRadius();
-      for(let s=0; s<strings; s++){
-        const openPc = N_SHARP.indexOf(TUNING[s]);
-        const cy = g.fbY + g.fbH * (s+0.5)/strings;
-
-        // f=0 (open)
-        const pc0 = openPc % 12;
-        const key0 = `${s}:0`;
-        if (!hidden.has(key0) && pcs.has(pc0)){
-          drawNote(g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value);
-        }
-
-        // f=1..N at center of [f-1,f]
-        for(let f=1; f<=frets; f++){
-          const prevX = g.baseX + g.fbW * ((f-1)/frets);
-          const thisX = g.baseX + g.fbW * (f/frets);
-          const cx = (prevX + thisX)/2;
-          const pc = (openPc + f) % 12;
-          const key = `${s}:${f}`;
-          if (!hidden.has(key) && pcs.has(pc)){
-            drawNote(cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value);
-          }
-        }
+    ctx.fillStyle = '#3b80ff66';
+    [3,5,7,9,12,15,17,19,21,24].forEach(f=>{
+      if (f>frets) return;
+      const prevX = baseX + fbW * ((f-1)/frets);
+      const thisX = baseX + fbW * (f/frets);
+      const xCenter = (prevX + thisX) / 2;
+      if (f%12===0){
+        ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.33, INLAY_R_12, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.66, INLAY_R_12, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.beginPath(); ctx.arc(xCenter, fbY+fbH*0.5, INLAY_R, 0, Math.PI*2); ctx.fill();
       }
-
-      updateLegend();
-    }
-
-    function degreeColor(interval){
-      if (interval === 0) return css('--deg-root');
-      if (interval === 3 || interval === 4) return css('--deg-third');
-      if (interval === 7) return css('--deg-fifth');
-      if (interval === 10 || interval === 11) return css('--deg-seventh');
-      if (interval === 6) return css('--deg-blues');
-      return css('--deg-other');
-    }
-
-    function drawNote(cx, cy, r, pc, root, degreeText, mode, keyName){
-      const interval = (pc - root + 12) % 12;
-      const fill = degreeColor(interval);
-      const flats = ['F','Bb','Eb','Ab','Db','Gb','Cb'].includes(keyName);
-      const noteName = (flats?N_FLAT:N_SHARP)[pc];
-
-      // 円
-      ctx.fillStyle = fill;
-      ctx.strokeStyle = css('--pos-border');   // ★ 縁色（テーマで切替）
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-
-      // ラベル（半径に比例して文字も少し縮める）
-      ctx.fillStyle = css('--label-ink');
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-      if (mode === 'note'){
-        ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
-        ctx.fillText(noteName, cx, cy);
-      } else if (mode === 'degree'){
-        ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
-        ctx.fillText(degreeText || '', cx, cy);
-      } else { // both
-        const dy = r * LABEL_OFFSET_FACTOR; // 半径に比例して上下に配置
-        ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
-        ctx.fillText(degreeText || '', cx, cy - dy);
-        ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
-        ctx.fillText(noteName,       cx, cy + dy);
-      }
-    }
-
-    // click to toggle (supports open = 0)
-    canvas.addEventListener('click', (ev)=>{
-      const rect = canvas.getBoundingClientRect();
-      const x = ev.clientX - rect.left;
-      const y = ev.clientY - rect.top;
-      const strings = 6;
-      const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-
-      // layout recompute (cheap)
-      const w = canvas.width / dpr, h = canvas.height / dpr;
-      const M = {left: 120, right: 24, top: 36, bottom: 56};
-      const fbY = M.top;
-      const fbH = h - M.top - M.bottom;
-      const baseX = M.left;            
-      const fbW = w - baseX - M.right; 
-      const cellW = fbW / frets;
-      const openCx = baseX - cellW * 0.5;
-
-      const sFloat = ((y - fbY) / fbH) * strings - 0.5;
-      let s = Math.round(sFloat); s = Math.min(strings-1, Math.max(0, s));
-
-      const centers = [openCx];
-      for (let f=1; f<=frets; f++){
-        const prevX = baseX + fbW * ((f-1)/frets);
-        const thisX = baseX + fbW * (f/frets);
-        centers.push( (prevX + thisX)/2 );
-      }
-      let nearestF = 0, best = Infinity;
-      centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
-      const key = `${s}:${nearestF}`;
-      if (hidden.has(key)) hidden.delete(key); else hidden.add(key);
-      draw();
     });
 
-    // UI events
-    document.getElementById('resetHidden').addEventListener('click', ()=>{ hidden.clear(); draw(); });
-
-    function updateLegend(){
-      const legend = document.getElementById('legend');
-      legend.innerHTML = `
-        <span class="chip"><span class="dot" style="background:var(--deg-root)"></span>ルート(1)</span>
-        <span class="chip"><span class="dot" style="background:var(--deg-third)"></span>3度(m3/M3)</span>
-        <span class="chip"><span class="dot" style="background:var(--deg-fifth)"></span>5度</span>
-        <span class="chip"><span class="dot" style="background:var(--deg-seventh)"></span>7度(m7/M7)</span>
-        <span class="chip"><span class="dot" style="background:var(--deg-other)"></span>その他スケール音</span>
-        <span class="chip"><span class="dot" style="background:var(--deg-blues)"></span>ブルーノート</span>
-        <span>キー: <b>${keySel.value}</b></span>
-        <span>スケール: <b>${scaleSel.value}</b></span>
-        <span>ラベル: <b>${labelModeSel.options[labelModeSel.selectedIndex].textContent}</b></span>
-      `;
+    for(let s=0; s<strings; s++){
+      const y = fbY + fbH * (s+0.5)/strings;
+      ctx.strokeStyle = S.string; ctx.lineWidth = 1 + (strings - s)*0.4;
+      ctx.beginPath(); ctx.moveTo(baseX, y); ctx.lineTo(baseX + fbW, y); ctx.stroke();
     }
 
-    // Initial render (C Major, Dark default, Both labels)
-    (function init(){
-      updateLegend();
-      draw();
-    })();
-  </script>
+    return {fbY, fbH, baseX, fbW, openCx};
+  }
+  function buildScale(root, name){
+    const {intervals, degrees} = SCALES[name];
+    const pcs = new Set(intervals.map(i => (root + i) % 12));
+    const degreeMap = new Map(); intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
+    return {pcs, degreeMap};
+  }
+
+  /* ===== 上段描画 ===== */
+  function drawMain(){
+    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+    const root = KEYS.indexOf(keySel.value);
+    const scaleName = scaleSel.value;
+    const labelMode = labelModeSel.value;
+
+    const cssW = mainCanvas.clientWidth|0, cssH = mainCanvas.clientHeight|0;
+    mainCanvas.width = Math.floor(cssW * dpr); mainCanvas.height = Math.floor(cssH * dpr);
+    mainCtx.setTransform(dpr,0,0,dpr,0,0);
+
+    const S = styleSnapshot();
+    const g = layoutOn(mainCtx, mainCanvas, STRINGS, frets, S);
+    const {pcs, degreeMap} = buildScale(root, scaleName);
+    const r = getNoteRadius();
+
+    for(let s=0; s<STRINGS; s++){
+      const openPc = N_SHARP.indexOf(TUNING[s]);
+      const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+
+      const pc0 = openPc % 12;
+      const k0 = `${s}:0`;
+      if (!hiddenMap.main.has(k0) && pcs.has(pc0)){
+        drawNote(mainCtx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
+      }
+      for(let f=1; f<=frets; f++){
+        const prevX = g.baseX + g.fbW * ((f-1)/frets);
+        const thisX = g.baseX + g.fbW * (f/frets);
+        const cx = (prevX + thisX)/2;
+        const pc = (openPc + f) % 12;
+        const k = `${s}:${f}`;
+        if (!hiddenMap.main.has(k) && pcs.has(pc)){
+          drawNote(mainCtx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
+        }
+      }
+    }
+
+    const legend = document.getElementById('legend');
+    legend.innerHTML = `
+      <span class="chip"><span class="dot" style="background:var(--deg-root)"></span>ルート(1)</span>
+      <span class="chip"><span class="dot" style="background:var(--deg-third)"></span>3度(m3/M3)</span>
+      <span class="chip"><span class="dot" style="background:var(--deg-fifth)"></span>5度</span>
+      <span class="chip"><span class="dot" style="background:var(--deg-seventh)"></span>7度(m7/M7)</span>
+      <span class="chip"><span class="dot" style="background:var(--deg-other)"></span>その他スケール音</span>
+      <span class="chip"><span class="dot" style="background:var(--deg-blues)"></span>ブルーノート</span>
+      <span>キー: <b>${keySel.value}</b></span>
+      <span>スケール: <b>${scaleSel.value}</b></span>
+      <span>ラベル: <b>${labelModeSel.options[labelModeSel.selectedIndex].textContent}</b></span>
+    `;
+  }
+  mainCanvas.addEventListener('click', (ev)=>{
+    const rect = mainCanvas.getBoundingClientRect();
+    toggleHiddenAtPoint('main', mainCanvas, ev.clientX - rect.left, ev.clientY - rect.top, drawMain);
+  });
+  resetHiddenMain.addEventListener('click', ()=>{ hiddenMap.main.clear(); drawMain(); });
+
+  /* ===== 下段：7枚描画 ===== */
+  function drawOnePos(canvasId){
+    const el = document.getElementById(canvasId);
+    const ctx = el.getContext('2d', { alpha:true });
+    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+    const root = KEYS.indexOf(keySel.value);
+    const scaleName = scaleSel.value;
+    const labelMode = labelModeSel.value;
+
+    const cssW = el.clientWidth|0, cssH = el.clientHeight|0;
+    el.width = Math.floor(cssW * dpr); el.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+
+    const S = styleSnapshot();
+    const g = layoutOn(ctx, el, STRINGS, frets, S);
+    const {pcs, degreeMap} = buildScale(root, scaleName);
+    const r = getNoteRadius();
+
+    for(let s=0; s<STRINGS; s++){
+      const openPc = N_SHARP.indexOf(TUNING[s]);
+      const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+
+      const pc0 = openPc % 12;
+      const k0 = `${s}:0`;
+      if (!hiddenMap[canvasId].has(k0) && pcs.has(pc0)){
+        drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
+      }
+      for(let f=1; f<=frets; f++){
+        const prevX = g.baseX + g.fbW * ((f-1)/frets);
+        const thisX = g.baseX + g.fbW * (f/frets);
+        const cxX = (prevX + thisX)/2;
+        const pc = (openPc + f) % 12;
+        const k = `${s}:${f}`;
+        if (!hiddenMap[canvasId].has(k) && pcs.has(pc)){
+          drawNote(ctx, cxX, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
+        }
+      }
+    }
+  }
+  function drawPositions(){ POSITION_IDS.forEach(id => drawOnePos(id)); }
+  POSITION_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    el.addEventListener('click', (ev)=>{
+      const rect = el.getBoundingClientRect();
+      toggleHiddenAtPoint(id, el, ev.clientX - rect.left, ev.clientY - rect.top, ()=>drawOnePos(id));
+    });
+  });
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.btnClear');
+    if (!btn) return;
+    const id = btn.getAttribute('data-pos');
+    hiddenMap[id].clear();
+    drawOnePos(id);
+  });
+
+  function toggleHiddenAtPoint(mapKey, canvasEl, x, y, rerender){
+    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+    const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
+    const M = {left: 120, right: 24, top: 36, bottom: 56};
+    const fbY = M.top, fbH = h - M.top - M.bottom;
+    const baseX = M.left, fbW = w - baseX - M.right;
+    const cellW = fbW / frets;
+    const openCx = baseX - cellW * 0.5;
+
+    const sFloat = ((y - fbY) / fbH) * STRINGS - 0.5;
+    let s = Math.round(sFloat); s = Math.min(STRINGS-1, Math.max(0, s));
+
+    const centers = [openCx];
+    for (let f=1; f<=frets; f++){
+      const prevX = baseX + fbW * ((f-1)/frets);
+      const thisX = baseX + fbW * (f/frets);
+      centers.push( (prevX + thisX)/2 );
+    }
+    let nearestF = 0, best = Infinity;
+    centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
+
+    const key = `${s}:${nearestF}`;
+    const set = hiddenMap[mapKey];
+    if (set.has(key)) set.delete(key); else set.add(key);
+
+    (rerender || (()=>{ drawMain(); drawPositions(); }))();
+  }
+
+  /* ===== プリセット（localStorage） ===== */
+  const LS_KEY = 'gsv_presets_v2'; // ★ v2: posTitlesを含む
+
+  function lsGet(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw){
+        const list = JSON.parse(raw);
+        return Array.isArray(list) ? list : [];
+      }
+      // 旧v1を見つけたら軽くマイグレ
+      const rawV1 = localStorage.getItem('gsv_presets_v1');
+      if (!rawV1) return [];
+      const listV1 = JSON.parse(rawV1);
+      const migrated = (Array.isArray(listV1)?listV1:[]).map(p => ({
+        id: p.id || p.name || 'unnamed',
+        name: p.name || p.id || 'unnamed',
+        meta: p.meta || { key:'C', scale:'Major (Ionian)', frets:16, labelMode:'both' },
+        hidden: p.hidden || {},
+        posTitles: DEFAULT_TITLES, // 旧データには無いのでデフォルト名を付与
+        updatedAt: Number(p.updatedAt || p.createdAt || Date.now())
+      }));
+      localStorage.setItem(LS_KEY, JSON.stringify(migrated));
+      return migrated;
+    }catch(e){ return []; }
+  }
+  function lsSet(list){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(list)); }catch(e){}
+  }
+
+  // タイトルの取得・反映
+  function getCurrentPosTitles(){
+    const map = {};
+    POSITION_IDS.forEach(id => {
+      map[id] = (posNameEls[id]?.textContent || DEFAULT_TITLES[id] || id).trim();
+    });
+    return map;
+  }
+  function applyPosTitles(map){
+    POSITION_IDS.forEach(id => {
+      const name = (map && map[id]) ? map[id] : DEFAULT_TITLES[id];
+      if (posNameEls[id]) posNameEls[id].textContent = name;
+    });
+  }
+
+  // 一覧UI更新
+  function renderPresetNameDatalist(list){
+    presetNamesDatalist.innerHTML = '';
+    list.forEach(p=>{
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      presetNamesDatalist.appendChild(opt);
+    });
+  }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function renderPresetDropdown(list){
+    presetList.innerHTML = '';
+    if (!list.length){
+      presetList.innerHTML = `<div class="empty">（保存されたプリセットはありません）</div>`;
+      return;
+    }
+    const sorted = [...list].sort((a,b)=> b.updatedAt - a.updatedAt);
+    sorted.forEach(p=>{
+      const row = document.createElement('div'); row.className = 'preset-item';
+      const meta = document.createElement('div'); meta.className = 'preset-meta';
+      // 先頭2件のポジション名だけサブ表示（長くなり過ぎない配慮）
+      const titleSamples = POSITION_IDS.slice(0,2).map(id => p.posTitles?.[id]).filter(Boolean);
+      meta.innerHTML = `<div class="preset-name">${escapeHtml(p.name)}</div>
+        <div class="preset-sub">${escapeHtml(p.meta.key)} / ${escapeHtml(p.meta.scale)} / Frets:${p.meta.frets}${p.meta.labelMode?` / ${escapeHtml(p.meta.labelMode)}`:''}${titleSamples.length?` / 例: ${escapeHtml(titleSamples.join('・'))}`:''}</div>`;
+      const actions = document.createElement('div'); actions.className = 'row-actions';
+      const loadBtn = document.createElement('button'); loadBtn.className='icon-btn'; loadBtn.textContent='読み込む';
+      loadBtn.addEventListener('click', (e)=>{ e.stopPropagation(); applyPreset(p); });
+      const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑'; delBtn.title='削除';
+      delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if (confirm(`「${p.name}」を削除しますか？`)) deletePresetFromLocal(p.id); });
+      actions.appendChild(loadBtn); actions.appendChild(delBtn);
+      row.appendChild(meta); row.appendChild(actions);
+      row.addEventListener('click', ()=> applyPreset(p));
+      presetList.appendChild(row);
+    });
+  }
+  function loadPresetList(){
+    const list = lsGet();
+    renderPresetDropdown(list);
+    renderPresetNameDatalist(list);
+    return list;
+  }
+  function savePresetToLocal(preset){
+    const list = lsGet();
+    const idx = list.findIndex(x => x.id === preset.id);
+    if (idx >= 0) list[idx] = preset; else list.push(preset);
+    lsSet(list);
+    renderPresetDropdown(list);
+    renderPresetNameDatalist(list);
+    presetMeta.textContent = `保存しました: ${preset.name}`;
+  }
+  function deletePresetFromLocal(id){
+    const list = lsGet().filter(x => x.id !== id);
+    lsSet(list);
+    renderPresetDropdown(list);
+    renderPresetNameDatalist(list);
+    presetMeta.textContent = 'プリセットを削除しました';
+  }
+
+  function currentStateToPreset(name){
+    const meta = { key:keySel.value, scale:scaleSel.value, frets:parseInt(fretSel.value||'16'), labelMode:labelModeSel.value };
+    const hiddenObj = {}; Object.keys(hiddenMap).forEach(k => hiddenObj[k] = Array.from(hiddenMap[k]));
+    const posTitles = getCurrentPosTitles(); // ★ 追加
+    return { id: name, name, meta, hidden: hiddenObj, posTitles, updatedAt: Date.now() };
+  }
+  function applyPreset(preset){
+    keySel.value = preset.meta.key;
+    scaleSel.value = preset.meta.scale;
+    fretSel.value = String(preset.meta.frets);
+    if (preset.meta.labelMode) labelModeSel.value = preset.meta.labelMode;
+
+    Object.keys(hiddenMap).forEach(k=>{
+      hiddenMap[k].clear();
+      (preset.hidden?.[k] || []).forEach(v=> hiddenMap[k].add(v));
+    });
+
+    // ★ 追加：ポジション名を反映（なければデフォルト）
+    applyPosTitles(preset.posTitles || DEFAULT_TITLES);
+
+    presetNameInput.value = preset.name; // 入力欄に反映
+    drawAll();
+    presetMeta.textContent = `読み込み: ${preset.name}（キー: ${preset.meta.key} / スケール: ${preset.meta.scale} / フレット: ${preset.meta.frets}）`;
+    presetDropdown.open = false;
+  }
+
+  // 保存/読込ボタン
+  btnSavePreset.addEventListener('click', ()=>{
+    const name = (presetNameInput.value || '').trim();
+    if (!name){ alert('プリセット名を入力してください'); presetNameInput.focus(); return; }
+    savePresetToLocal( currentStateToPreset(name) );
+  });
+  presetNameInput.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){ e.preventDefault(); btnSavePreset.click(); }
+  });
+  btnExportPreset.addEventListener('click', ()=>{
+    const name = (presetNameInput.value || 'preset').replace(/[\\/:*?"<>|]/g,'_');
+    const preset = currentStateToPreset(name);
+    const blob = new Blob([JSON.stringify(preset,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `${name}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    presetMeta.textContent = `JSONを書き出しました: ${name}.json`;
+  });
+  btnImportPreset.addEventListener('click', ()=> importFile.click());
+  importFile.addEventListener('change', async ()=>{
+    const file = importFile.files[0]; if (!file) return;
+    try{
+      const text = await file.text();
+      const preset = JSON.parse(text);
+      let name = (preset.name || preset.id || 'imported').toString().trim() || 'imported';
+      preset.id = name; preset.name = name; preset.updatedAt = Date.now();
+      // posTitlesが欠けている古いJSONでもOK
+      if (!preset.posTitles) preset.posTitles = DEFAULT_TITLES;
+      savePresetToLocal(preset);
+      applyPreset(preset);
+    }catch(e){ alert('読み込みに失敗しました: ' + e.message); }
+    finally{ importFile.value = ''; }
+  });
+
+  /* ===== 入力変更で毎回リセット＆再描画 ===== */
+  function resetHiddenAll(){ Object.keys(hiddenMap).forEach(k => hiddenMap[k].clear()); }
+  function drawAll(){ syncDPR(); drawMain(); drawPositions(); }
+  ['input','change'].forEach(evt =>
+    [keySel, scaleSel, fretSel, labelModeSel].forEach(el =>
+      el.addEventListener(evt, ()=>{ resetHiddenAll(); drawAll(); })
+    )
+  );
+  window.addEventListener('resize', ()=> drawAll());
+
+  /* 初期表示 */
+  (function init(){
+    applyDefaultTitles();   // ★ まずデフォルト名を反映
+    drawAll();
+    loadPresetList();
+  })();
+</script>
 </body>
 </html>
