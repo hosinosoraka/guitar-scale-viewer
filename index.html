@@ -302,7 +302,7 @@
   KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
   Object.keys(SCALES).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; scaleSel.appendChild(o); });
   for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
-  keySel.value='C'; scaleSel.value='Major (Ionian)'; fretSel.value='24';
+  keySel.value='C'; scaleSel.value='- Major (Ionian)'; fretSel.value='24';
 
   // デフォルト名を反映
   function applyDefaultTitles(){
