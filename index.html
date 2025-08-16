@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scale Viewer Ver 1.03</title>
+  <title>Guitar Scale Viewer Ver 1.04</title>
   <style>
     :root{
       /* Dark (default) palette */
@@ -132,7 +132,7 @@
   <div class="card">
     <canvas id="fretboard" width="1400" height="520"></canvas>
     <div class="legend" id="legend"></div>
-    <div class="foot">開放弦はナット左の丸。クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.03</div>
+    <div class="foot">開放弦はナット左の丸。クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.04</div>
   </div>
 
   <!-- プリセット保存/読み込み -->
@@ -150,7 +150,7 @@
           <button id="btnSavePreset">この状態を保存</button>
           <button id="btnExportPreset">JSONを書き出し</button>
           <button id="btnImportPreset">JSONを読み込み</button>
-          <input id="importFile" type="file" accept="application/json" style="display:none;">
+          <input id="importFile" type="file" accept=".json,application/json" style="display:none;">
         </div>
       </div>
     </div>
@@ -586,8 +586,30 @@
     try{
       const raw = localStorage.getItem(LS_KEY);
       if (raw){
-        const list = JSON.parse(raw);
-        return Array.isArray(list) ? list : [];
+        let list;
+        try{
+          list = JSON.parse(raw);
+        }catch(e){
+          console.warn('ローカル保存データが壊れているためリセットします', e);
+          localStorage.removeItem(LS_KEY);
+          return [];
+        }
+        // repair: ensure each item has required fields and posTitles
+        list = Array.isArray(list) ? list : [];
+        const repaired = list.map(p=>{
+          const name = String((p && (p.name || p.id)) || 'unnamed').trim() || 'unnamed';
+          return {
+            id: name,
+            name,
+            meta: p && p.meta ? p.meta : { key:'C', scale:'Major (Ionian)', frets:16, labelMode:'both' },
+            hidden: p && p.hidden ? p.hidden : {},
+            posTitles: p && p.posTitles ? p.posTitles : DEFAULT_TITLES,
+            updatedAt: Number(p && (p.updatedAt || p.createdAt) || Date.now())
+          };
+        });
+        // write back repaired to avoid repeated work
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(repaired)); }catch(_){}
+        return repaired;
       }
       // 旧v1を見つけたら軽くマイグレ
       const rawV1 = localStorage.getItem('gsv_presets_v1');
@@ -727,20 +749,80 @@
     presetMeta.textContent = `JSONを書き出しました: ${name}.json`;
   });
   btnImportPreset.addEventListener('click', ()=> importFile.click());
-  importFile.addEventListener('change', async ()=>{
-    const file = importFile.files[0]; if (!file) return;
+  
+importFile.addEventListener('change', async ()=>{
+  const file = importFile.files && importFile.files[0]; if (!file) return;
+  let textRaw = '';
+  try{
+    textRaw = await file.text();
+  }catch(e){
+    alert('ファイルの読み込みに失敗: ' + (e && e.message ? e.message : e));
+    console.error('file.text() error', e);
+    importFile.value = '';
+    return;
+  }
+  try{
+    
+    // JSON5-lite sanitize: remove // and /* */ comments, and trailing commas before ] or }
+    const sanitize = (s)=>{
+      // remove BOM
+      s = s.replace(/^\uFEFF/, '');
+      // strip comments
+      s = s.replace(/\/\/[^\n\r]*/g, '')
+           .replace(/\/\*[\s\S]*?\*\//g, '');
+      // remove trailing commas
+      s = s.replace(/,\s*(\}|\])/g, '$1');
+      return s.trim();
+    };
+
+    let text = typeof textRaw === 'string' ? textRaw : String(textRaw||'');
+    let preset;
     try{
-      const text = await file.text();
-      const preset = JSON.parse(text);
-      let name = (preset.name || preset.id || 'imported').toString().trim() || 'imported';
-      preset.id = name; preset.name = name; preset.updatedAt = Date.now();
-      // posTitlesが欠けている古いJSONでもOK
-      if (!preset.posTitles) preset.posTitles = DEFAULT_TITLES;
-      savePresetToLocal(preset);
-      applyPreset(preset);
-    }catch(e){ alert('読み込みに失敗しました: ' + e.message); }
-    finally{ importFile.value = ''; }
-  });
+      preset = JSON.parse(text.replace(/^\uFEFF/, ''));
+    }catch(parseErr){
+      // fallback: sanitize common issues then parse again
+      try{
+        const cleaned = sanitize(text);
+        preset = JSON.parse(cleaned);
+        console.warn('JSONをクリーンアップして読み込みました（コメント/末尾カンマ/BOMを除去）');
+      }catch(e2){
+        const head = text.slice(0,200);
+        alert('読み込みに失敗しました: ' + (parseErr && parseErr.message ? parseErr.message : parseErr)
+              + '\\n\\n先頭抜粋:\\n' + head);
+        console.error('Import JSON head:', head, parseErr, e2);
+        return;
+      }
+    }
+
+    let name = (preset.name || preset.id || 'imported');
+    name = String(name ?? 'imported').trim() || 'imported';
+    preset.id = name; preset.name = name; preset.updatedAt = Date.now();
+
+    if (!preset.posTitles && typeof DEFAULT_TITLES !== 'undefined') { preset.posTitles = DEFAULT_TITLES; }
+
+    const fixHidden = (h)=>{
+      const out = {};
+      try{
+        const keys = (typeof hiddenMap !== 'undefined' && hiddenMap) ? Object.keys(hiddenMap) : (h ? Object.keys(h) : []);
+        keys.forEach(k=>{
+          const v = h && h[k];
+          out[k] = Array.isArray(v) ? v
+                : (v instanceof Set) ? Array.from(v)
+                : (v && typeof v === 'object') ? Object.values(v).flat()
+                : [];
+        });
+      }catch(e){}
+      return out;
+    };
+    if (preset.hidden) preset.hidden = fixHidden(preset.hidden);
+
+    if (typeof savePresetToLocal === 'function') savePresetToLocal(preset);
+    if (typeof applyPreset === 'function') applyPreset(preset);
+  }finally{
+    importFile.value = '';
+  }
+});
+
 
   /* ===== 入力変更で毎回リセット＆再描画 ===== */
   function resetHiddenAll(){ Object.keys(hiddenMap).forEach(k => hiddenMap[k].clear()); }
