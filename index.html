@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scale Viewer Ver 1.06</title>
+  <title>Guitar Scale Viewer Ver 1.08</title>
+  <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
       /* Dark (default) palette */
@@ -35,58 +36,34 @@
     }
     select:focus, button:focus, input[type="text"]:focus { border-color: var(--accent); }
 
-    main{ padding:px; display:grid; place-items:center; }
+    main{ padding:16px; display:grid; place-items:center; }
     .card{
       width:100%; max-width:90vw; background:var(--panel);
-      border:1px solid #232735; border-radius:px; padding:12px; margin-bottom:px;
+      border:1px solid #232735; border-radius:12px; padding:12px; margin-bottom:12px;
     }
 
     canvas{ width:100%; height:360px; display:block; border-radius:12px; background:transparent; }
 
-    .legend{ display:flex; gap:px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-top:8px; }
+    .legend{ display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-top:8px; }
     .chip{ display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; border:1px solid #2a2f40; background:var(--panel); }
     .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
     .foot { color:var(--muted); text-align:center; font-size:12px; margin-top:8px; }
 
-    .positions{ width:100%; max-width:90vw; margin:0 auto; display:flex; flex-direction:column; gap:px; }
+    .positions{ width:100%; max-width:90vw; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
     .pos-card{ background:var(--panel); border:1px solid #232735; border-radius:12px; padding:12px; }
     .pos-title{ font-size:12px; color:var(--muted); margin:4px 0 8px; display:flex; gap:10px; align-items:center; justify-content:space-between; }
-    .pos-name{
-      color:var(--ink);
-      font-weight:600;
-      outline: none;
-      padding: 2px 6px;
-      border-radius: 8px;
-    }
-    .pos-name:focus{
-      box-shadow: 0 0 0 2px rgba(79,140,255,0.35);
-      background: rgba(79,140,255,0.08);
-    }
+    .pos-name{ color:var(--ink); font-weight:600; outline: none; padding: 2px 6px; border-radius: 8px; }
+    .pos-name:focus{ box-shadow: 0 0 0 2px rgba(79,140,255,0.35); background: rgba(79,140,255,0.08); }
     .pos-canvas{ width:100%; height:360px; display:block; border-radius:12px; }
     .pos-actions{ display:flex; gap:8px; }
-    .icon-btn{
-      border:1px solid #2a2f40; background:transparent; color:var(--ink);
-      padding:6px 10px; border-radius:10px; cursor:pointer;
-    }
+    .icon-btn{ border:1px solid #2a2f40; background:transparent; color:var(--ink); padding:6px 10px; border-radius:10px; cursor:pointer; }
     .icon-btn:hover{ border-color:var(--accent); }
 
-    /* プリセット一覧（details/summary） */
-    details.dropdown{
-      border:1px solid #2a2f40; border-radius:12px; background:var(--panel);
-      overflow:hidden;
-    }
-    details.dropdown > summary{
-      list-style:none; cursor:pointer; padding:10px 12px; border-radius:12px;
-      outline:none; user-select:none;
-    }
-    details.dropdown[open] > summary{
-      border-bottom:1px solid #2a2f40; border-bottom-left-radius:0; border-bottom-right-radius:0;
-    }
+    details.dropdown{ border:1px solid #2a2f40; border-radius:12px; background:var(--panel); overflow:hidden; }
+    details.dropdown > summary{ list-style:none; cursor:pointer; padding:10px 12px; border-radius:12px; outline:none; user-select:none; }
+    details.dropdown[open] > summary{ border-bottom:1px solid #2a2f40; border-bottom-left-radius:0; border-bottom-right-radius:0; }
     details.dropdown .menu{ max-height:320px; overflow:auto; padding:4px 0; }
-    .preset-item{
-      display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
-      border-bottom:1px solid #232735; cursor:pointer;
-    }
+    .preset-item{ display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid #232735; cursor:pointer; }
     .preset-item:last-child{ border-bottom:none; }
     .preset-item:hover{ background: rgba(255,255,255,0.04); }
     .preset-meta{ flex:1; min-width:0; }
@@ -120,7 +97,11 @@
       <label for="fretCount">フレット数（12〜24）</label>
       <select id="fretCount"></select>
     </div>
-    <div>
+        <div>
+      <label>&nbsp;</label>
+      <button id="btnExportPdf">PDFで保存</button>
+    </div>
+<div>
       <label>&nbsp;</label>
       <button id="resetHiddenMain">上段の非表示リセット</button>
     </div>
@@ -128,12 +109,21 @@
 </header>
 
 <main>
-  <!-- 上段：全体指板 -->
-  <div class="card">
-    <canvas id="fretboard" width="1400" height="520"></canvas>
-    <div class="legend" id="legend"></div>
-    <div class="foot">クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.06（表示の一部変更）</div>
+<!-- 上段：全体指板 -->
+<div class="card">
+  <canvas id="fretboard" width="1400" height="520"></canvas>
+  <div class="legend" id="legend"></div>
+  <div class="foot">
+    クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.08（PDF出力の追加、及びバグフィックス）
   </div>
+  <div style="text-align:center; margin-top:6px;">
+    <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
+       target="_blank" rel="noopener"
+       style="color:yellow; font-weight:bold; text-decoration:none;">
+       ReadMe（GitHub）を開く
+    </a>
+  </div>
+</div>
 
   <!-- プリセット保存/読み込み -->
   <div class="card">
@@ -174,48 +164,12 @@
       </div>
       <canvas class="pos-canvas" id="pos-6-I"></canvas>
     </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-6-M" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-6-M" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-6-M"></canvas>
-    </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-6-P" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-6-P" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-6-P"></canvas>
-    </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-5-I" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-5-I" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-5-I"></canvas>
-    </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-5-M" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-5-M" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-5-M"></canvas>
-    </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-5-P" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-5-P" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-5-P"></canvas>
-    </div>
-    <div class="pos-card">
-      <div class="pos-title">
-        <span class="pos-name" contenteditable="true" data-pos="pos-4-I" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-4-I" class="icon-btn btnClear">非表示リセット</button></div>
-      </div>
-      <canvas class="pos-canvas" id="pos-4-I"></canvas>
-    </div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-6-M" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-6-M" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-6-M"></canvas></div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-6-P" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-6-P" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-6-P"></canvas></div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-I" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-I" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-I"></canvas></div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-M" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-M" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-M"></canvas></div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-P" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-P" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-P"></canvas></div>
+    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-4-I" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-4-I" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-4-I"></canvas></div>
   </section>
 </main>
 
@@ -335,7 +289,7 @@
     ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
     ctx.lineTo(x + w, y + h - r.br);
     ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
-    ctx.lineTo(x + r.bl, y + h);
+    ctx.lineTo(x, y + h);
     ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
     ctx.lineTo(x, y + r.tl);
     ctx.quadraticCurveTo(x, y, x + r.tl, y);
@@ -580,96 +534,31 @@
   }
 
   /* ===== プリセット（localStorage） ===== */
-  const LS_KEY = 'gsv_presets_v2'; // ★ v2: posTitlesを含む
+  const LS_KEY = 'gsv_presets_v1';
 
   function lsGet(){
     try{
       const raw = localStorage.getItem(LS_KEY);
-      if (raw){
-        let list;
-        try{
-          list = JSON.parse(raw);
-        }catch(e){
-          console.warn('ローカル保存データが壊れているためリセットします', e);
-          localStorage.removeItem(LS_KEY);
-          return [];
-        }
-        // repair: ensure each item has required fields and posTitles
-        list = Array.isArray(list) ? list : [];
-        const repaired = list.map(p=>{
-          const name = String((p && (p.name || p.id)) || 'unnamed').trim() || 'unnamed';
-          return {
-            id: name,
-            name,
-            meta: p && p.meta ? p.meta : { key:'C', scale:'Major (Ionian)', frets:16, labelMode:'both' },
-            hidden: p && p.hidden ? p.hidden : {},
-            posTitles: p && p.posTitles ? p.posTitles : DEFAULT_TITLES,
-            updatedAt: Number(p && (p.updatedAt || p.createdAt) || Date.now())
-          };
-        });
-        // write back repaired to avoid repeated work
-        try{ localStorage.setItem(LS_KEY, JSON.stringify(repaired)); }catch(_){}
-        return repaired;
-      }
-      // 旧v1を見つけたら軽くマイグレ
-      const rawV1 = localStorage.getItem('gsv_presets_v1');
-      if (!rawV1) return [];
-      const listV1 = JSON.parse(rawV1);
-      const migrated = (Array.isArray(listV1)?listV1:[]).map(p => ({
-        id: p.id || p.name || 'unnamed',
-        name: p.name || p.id || 'unnamed',
-        meta: p.meta || { key:'C', scale:'Major (Ionian)', frets:16, labelMode:'both' },
-        hidden: p.hidden || {},
-        posTitles: DEFAULT_TITLES, // 旧データには無いのでデフォルト名を付与
-        updatedAt: Number(p.updatedAt || p.createdAt || Date.now())
-      }));
-      localStorage.setItem(LS_KEY, JSON.stringify(migrated));
-      return migrated;
+      if (!raw) return [];
+      const list = JSON.parse(raw);
+      return Array.isArray(list) ? list : [];
     }catch(e){ return []; }
   }
-  function lsSet(list){
-    try{ localStorage.setItem(LS_KEY, JSON.stringify(list)); }catch(e){}
-  }
-
-  // タイトルの取得・反映
-  function getCurrentPosTitles(){
-    const map = {};
-    POSITION_IDS.forEach(id => {
-      map[id] = (posNameEls[id]?.textContent || DEFAULT_TITLES[id] || id).trim();
-    });
-    return map;
-  }
-  function applyPosTitles(map){
-    POSITION_IDS.forEach(id => {
-      const name = (map && map[id]) ? map[id] : DEFAULT_TITLES[id];
-      if (posNameEls[id]) posNameEls[id].textContent = name;
-    });
-  }
-
-  // 一覧UI更新
+  function lsSet(list){ try{ localStorage.setItem(LS_KEY, JSON.stringify(list)); }catch(e){} }
   function renderPresetNameDatalist(list){
     presetNamesDatalist.innerHTML = '';
-    list.forEach(p=>{
-      const opt = document.createElement('option');
-      opt.value = p.name;
-      presetNamesDatalist.appendChild(opt);
-    });
+    list.forEach(p=>{ const opt = document.createElement('option'); opt.value = p.name; presetNamesDatalist.appendChild(opt); });
   }
-  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
   function renderPresetDropdown(list){
     presetList.innerHTML = '';
-    if (!list.length){
-      presetList.innerHTML = `<div class="empty">（保存されたプリセットはありません）</div>`;
-      return;
-    }
+    if (!list.length){ presetList.innerHTML = `<div class="empty">（保存されたプリセットはありません）</div>`; return; }
     const sorted = [...list].sort((a,b)=> b.updatedAt - a.updatedAt);
     sorted.forEach(p=>{
       const row = document.createElement('div'); row.className = 'preset-item';
       const meta = document.createElement('div'); meta.className = 'preset-meta';
-      // 先頭2件のポジション名だけサブ表示（長くなり過ぎない配慮）
-      const titleSamples = POSITION_IDS.slice(0,2).map(id => p.posTitles?.[id]).filter(Boolean);
       meta.innerHTML = `<div class="preset-name">${escapeHtml(p.name)}</div>
-        <div class="preset-sub">${escapeHtml(p.meta.key)} / ${escapeHtml(p.meta.scale)} / Frets:${p.meta.frets}${p.meta.labelMode?` / ${escapeHtml(p.meta.labelMode)}`:''}${titleSamples.length?` / 例: ${escapeHtml(titleSamples.join('・'))}`:''}</div>`;
+        <div class="preset-sub">${escapeHtml(p.meta.key)} / ${escapeHtml(p.meta.scale)} / Frets:${p.meta.frets}${p.meta.labelMode?` / ${escapeHtml(p.meta.labelMode)}`:''}</div>`;
       const actions = document.createElement('div'); actions.className = 'row-actions';
       const loadBtn = document.createElement('button'); loadBtn.className='icon-btn'; loadBtn.textContent='読み込む';
       loadBtn.addEventListener('click', (e)=>{ e.stopPropagation(); applyPreset(p); });
@@ -681,34 +570,22 @@
       presetList.appendChild(row);
     });
   }
-  function loadPresetList(){
-    const list = lsGet();
-    renderPresetDropdown(list);
-    renderPresetNameDatalist(list);
-    return list;
-  }
-  function savePresetToLocal(preset){
-    const list = lsGet();
-    const idx = list.findIndex(x => x.id === preset.id);
-    if (idx >= 0) list[idx] = preset; else list.push(preset);
-    lsSet(list);
-    renderPresetDropdown(list);
-    renderPresetNameDatalist(list);
-    presetMeta.textContent = `保存しました: ${preset.name}`;
-  }
-  function deletePresetFromLocal(id){
-    const list = lsGet().filter(x => x.id !== id);
-    lsSet(list);
-    renderPresetDropdown(list);
-    renderPresetNameDatalist(list);
-    presetMeta.textContent = 'プリセットを削除しました';
-  }
+  function loadPresetList(){ const list = lsGet(); renderPresetDropdown(list); renderPresetNameDatalist(list); return list; }
+  function savePresetToLocal(preset){ const list = lsGet(); const idx = list.findIndex(x => x.id === preset.id); if (idx >= 0) list[idx] = preset; else list.push(preset); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = `保存しました: ${preset.name}`; }
+  function deletePresetFromLocal(id){ const list = lsGet().filter(x => x.id !== id); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = 'プリセットを削除しました'; }
 
   function currentStateToPreset(name){
-    const meta = { key:keySel.value, scale:scaleSel.value, frets:parseInt(fretSel.value||'16'), labelMode:labelModeSel.value };
-    const hiddenObj = {}; Object.keys(hiddenMap).forEach(k => hiddenObj[k] = Array.from(hiddenMap[k]));
-    const posTitles = getCurrentPosTitles(); // ★ 追加
-    return { id: name, name, meta, hidden: hiddenObj, posTitles, updatedAt: Date.now() };
+  const meta = { key:keySel.value, scale:scaleSel.value, frets:parseInt(fretSel.value||'16'), labelMode:labelModeSel.value };
+  const hiddenObj = {}; Object.keys(hiddenMap).forEach(k => hiddenObj[k] = Array.from(hiddenMap[k]));
+  // ▼ 7つのポジション名を保存（空白はトリム、空なら現状のテキストをそのまま）
+  const posTitles = {};
+  POSITION_IDS.forEach(id => {
+    const el = posNameEls[id];
+    if (!el) return;
+    const txt = (el.textContent ?? '').trim();
+    posTitles[id] = txt;
+  });
+  return { id: name, name, meta, hidden: hiddenObj, posTitles, updatedAt: Date.now() };
   }
   function applyPreset(preset){
     keySel.value = preset.meta.key;
@@ -721,24 +598,27 @@
       (preset.hidden?.[k] || []).forEach(v=> hiddenMap[k].add(v));
     });
 
-    // ★ 追加：ポジション名を反映（なければデフォルト）
-    applyPosTitles(preset.posTitles || DEFAULT_TITLES);
+  // ▼ 7つのポジション名を復元（後方互換：posTitles が無ければスキップ）
+  if (preset.posTitles && typeof preset.posTitles === 'object') {
+    POSITION_IDS.forEach(id => {
+      const el = posNameEls[id];
+      if (!el) return;
+      const val = preset.posTitles[id];
+      if (typeof val === 'string' && val.trim().length) {
+        el.textContent = val.trim();
+      }
+    });
+  }
 
-    presetNameInput.value = preset.name; // 入力欄に反映
+    presetNameInput.value = preset.name;
     drawAll();
     presetMeta.textContent = `読み込み: ${preset.name}（キー: ${preset.meta.key} / スケール: ${preset.meta.scale} / フレット: ${preset.meta.frets}）`;
     presetDropdown.open = false;
   }
 
   // 保存/読込ボタン
-  btnSavePreset.addEventListener('click', ()=>{
-    const name = (presetNameInput.value || '').trim();
-    if (!name){ alert('プリセット名を入力してください'); presetNameInput.focus(); return; }
-    savePresetToLocal( currentStateToPreset(name) );
-  });
-  presetNameInput.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter'){ e.preventDefault(); btnSavePreset.click(); }
-  });
+  btnSavePreset.addEventListener('click', ()=>{ const name = (presetNameInput.value || '').trim(); if (!name){ alert('プリセット名を入力してください'); presetNameInput.focus(); return; } savePresetToLocal( currentStateToPreset(name) ); });
+  presetNameInput.addEventListener('keydown', (e)=>{ if (e.key === 'Enter'){ e.preventDefault(); btnSavePreset.click(); } });
   btnExportPreset.addEventListener('click', ()=>{
     const name = (presetNameInput.value || 'preset').replace(/[\\/:*?"<>|]/g,'_');
     const preset = currentStateToPreset(name);
@@ -749,80 +629,22 @@
     presetMeta.textContent = `JSONを書き出しました: ${name}.json`;
   });
   btnImportPreset.addEventListener('click', ()=> importFile.click());
-  
-importFile.addEventListener('change', async ()=>{
-  const file = importFile.files && importFile.files[0]; if (!file) return;
-  let textRaw = '';
-  try{
-    textRaw = await file.text();
-  }catch(e){
-    alert('ファイルの読み込みに失敗: ' + (e && e.message ? e.message : e));
-    console.error('file.text() error', e);
-    importFile.value = '';
-    return;
-  }
-  try{
-    
-    // JSON5-lite sanitize: remove // and /* */ comments, and trailing commas before ] or }
-    const sanitize = (s)=>{
-      // remove BOM
-      s = s.replace(/^\uFEFF/, '');
-      // strip comments
-      s = s.replace(/\/\/[^\n\r]*/g, '')
-           .replace(/\/\*[\s\S]*?\*\//g, '');
-      // remove trailing commas
-      s = s.replace(/,\s*(\}|\])/g, '$1');
-      return s.trim();
-    };
-
-    let text = typeof textRaw === 'string' ? textRaw : String(textRaw||'');
-    let preset;
+  importFile.addEventListener('change', async ()=>{
+    const file = importFile.files && importFile.files[0]; if (!file) return;
+    let textRaw = '';
+    try{ textRaw = await file.text(); }catch(e){ alert('ファイルの読み込みに失敗: ' + (e && e.message ? e.message : e)); console.error('file.text() error', e); importFile.value = ''; return; }
     try{
-      preset = JSON.parse(text.replace(/^\uFEFF/, ''));
-    }catch(parseErr){
-      // fallback: sanitize common issues then parse again
-      try{
-        const cleaned = sanitize(text);
-        preset = JSON.parse(cleaned);
-        console.warn('JSONをクリーンアップして読み込みました（コメント/末尾カンマ/BOMを除去）');
-      }catch(e2){
-        const head = text.slice(0,200);
-        alert('読み込みに失敗しました: ' + (parseErr && parseErr.message ? parseErr.message : parseErr)
-              + '\\n\\n先頭抜粋:\\n' + head);
-        console.error('Import JSON head:', head, parseErr, e2);
-        return;
-      }
-    }
-
-    let name = (preset.name || preset.id || 'imported');
-    name = String(name ?? 'imported').trim() || 'imported';
-    preset.id = name; preset.name = name; preset.updatedAt = Date.now();
-
-    if (!preset.posTitles && typeof DEFAULT_TITLES !== 'undefined') { preset.posTitles = DEFAULT_TITLES; }
-
-    const fixHidden = (h)=>{
-      const out = {};
-      try{
-        const keys = (typeof hiddenMap !== 'undefined' && hiddenMap) ? Object.keys(hiddenMap) : (h ? Object.keys(h) : []);
-        keys.forEach(k=>{
-          const v = h && h[k];
-          out[k] = Array.isArray(v) ? v
-                : (v instanceof Set) ? Array.from(v)
-                : (v && typeof v === 'object') ? Object.values(v).flat()
-                : [];
-        });
-      }catch(e){}
-      return out;
-    };
-    if (preset.hidden) preset.hidden = fixHidden(preset.hidden);
-
-    if (typeof savePresetToLocal === 'function') savePresetToLocal(preset);
-    if (typeof applyPreset === 'function') applyPreset(preset);
-  }finally{
-    importFile.value = '';
-  }
-});
-
+      const sanitize = (s)=>{ s = s.replace(/^\uFEFF/, ''); s = s.replace(/\/\/[^\n\r]*/g, '').replace(/\/\*[\s\S]*?\*\//g, ''); s = s.replace(/,\s*(\}|\])/g, '$1'); return s.trim(); };
+      let text = typeof textRaw === 'string' ? textRaw : String(textRaw||'');
+      let preset; try{ preset = JSON.parse(text.replace(/^\uFEFF/, '')); }catch(parseErr){ try{ const cleaned = sanitize(text); preset = JSON.parse(cleaned); console.warn('JSONをクリーンアップして読み込みました'); }catch(e2){ const head = text.slice(0,200); alert('読み込みに失敗しました: ' + (parseErr && parseErr.message ? parseErr.message : parseErr) + '\n\n先頭抜粋:\n' + head); console.error('Import JSON head:', head, parseErr, e2); return; } }
+      let name = (preset.name || preset.id || 'imported'); name = String(name ?? 'imported').trim() || 'imported';
+      preset.id = name; preset.name = name; preset.updatedAt = Date.now();
+      const fixHidden = (h)=>{ const out = {}; try{ const keys = (typeof hiddenMap !== 'undefined' && hiddenMap) ? Object.keys(hiddenMap) : (h ? Object.keys(h) : []); keys.forEach(k=>{ const v = h && h[k]; out[k] = Array.isArray(v) ? v : (v instanceof Set) ? Array.from(v) : (v && typeof v === 'object') ? Object.values(v).flat() : []; }); }catch(e){} return out; };
+      if (preset.hidden) preset.hidden = fixHidden(preset.hidden);
+      if (typeof savePresetToLocal === 'function') savePresetToLocal(preset);
+      if (typeof applyPreset === 'function') applyPreset(preset);
+    }finally{ importFile.value = ''; }
+  });
 
   /* ===== 入力変更で毎回リセット＆再描画 ===== */
   function resetHiddenAll(){ Object.keys(hiddenMap).forEach(k => hiddenMap[k].clear()); }
@@ -834,12 +656,260 @@ importFile.addEventListener('change', async ()=>{
   );
   window.addEventListener('resize', ()=> drawAll());
 
-  /* 初期表示 */
-  (function init(){
-    applyDefaultTitles();   // ★ まずデフォルト名を反映
-    drawAll();
-    loadPresetList();
+   /* 初期表示 */
+   (function init(){
+     applyDefaultTitles();
+     drawAll();
+     loadPresetList();
+   })();
+
+
+(() => {
+  // A4縦・余白5mmに1ページでフィット
+  const PAGE_MM = { w: 210, h: 297, margin: 5 };
+
+  function getPresetTitle() {
+    const el = document.getElementById('presetName');
+    const name = (el && el.value || '').trim();
+    return name || '未保存のプリセット';
+  }
+  function getMetaLine() {
+    const keySel = document.getElementById('keySelect');
+    const scaleSel = document.getElementById('scaleSelect');
+    return `${keySel?.value || ''} / ${scaleSel?.value || ''}`;
+  }  
+
+ // 画面の「上段指板＋7ポジション」を縦一列で合成（PDF用ライト配色で再描画／各ポジションに小見出し）
+function composeExportCanvas() {
+  const mainCanvas = document.getElementById('fretboard');
+  const ids = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I'];
+  const list = [mainCanvas, ...ids.map(id => document.getElementById(id))].filter(Boolean);
+
+  // 画面の見た目比率を優先（clientWidth/Height）。品質向上のため横幅は2倍に。
+
+  const outW = 3000;
+ // ウィンドウ非依存：PDF用は “固定の縦横比” を採用（好みで調整可）
+ const MAIN_RATIO = 0.22; // 上段・全体指板の高さ = outW * 0.22
+ const POS_RATIO  = 0.18; // 各ポジションの高さ = outW * 0.18
+ const scaledHeights = list.map((_, i) =>
+   Math.round(outW * (i === 0 ? MAIN_RATIO : POS_RATIO))
+ );
+
+  // タイトル領域（コンパクト）
+  const gap = Math.round(outW * 0.0025);           // 0.25%（必要なら 0 に）
+  const titleFontPx = Math.round(outW * 0.022);
+  const metaFontPx  = Math.round(outW * 0.012);
+  const titlePad    = Math.round(outW * 0.016);
+  const titleAreaH  = titlePad + titleFontPx + Math.round(metaFontPx * 1.1) + Math.round(titlePad * 0.4);
+
+  // 各ポジション小見出しの高さ（上段＝index 0 は見出しなし）
+  const subFontPx = Math.round(outW * 0.018);
+  const subPad    = Math.round(outW * 0.010);
+  const labelHeights = list.map((_, i) => i === 0 ? 0 : (subFontPx + subPad));
+
+  // DOMからポジション名を取得（なければフォールバック）
+  const posTitles = ids.map((id, i) => {
+    const el = document.querySelector(`.pos-name[data-pos="${id}"]`);
+    const txt = (el && el.textContent && el.textContent.trim()) || `タイトル${i+1}`;
+    return txt;
+  });
+
+  const totalH = titleAreaH
+    + scaledHeights.reduce((a,b)=>a+b,0)
+    + labelHeights.reduce((a,b)=>a+b,0)
+    + gap * (list.length - 1);
+
+  // ▼ PDF用ライト配色（要望どおり）
+  // - 指板(board1/2)・フレット線はライト（反転系）
+  // - 弦は黒、ポジション縁（白丸の輪郭）も黒、フレット番号も黒
+  // - 音符の度数色は既存のまま流用
+  const LightStyle = (() => {
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    return {
+      board1:'#f2f4f8', board2:'#e8ecf3',
+      nut:'#222',
+      fret:'#c3c9d6',
+      string:'#000000',
+      posBorder:'#000000',
+      labelInk:'#000000',
+      muted:'#000000',
+      degRoot:css('--deg-root'),
+      degThird:css('--deg-third'),
+      degFifth:css('--deg-fifth'),
+      degSeventh:css('--deg-seventh'),
+      degOther:css('--deg-other'),
+      degBlues:css('--deg-blues'),
+    };
   })();
+
+  // ▼ 既存ロジックを使ってライト配色で“再描画”するヘルパ
+  function renderLightSnapshot(targetW, targetH, mapKey){
+    const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
+    const keySel = document.getElementById('keySelect');
+    const scaleSel = document.getElementById('scaleSelect');
+    const labelModeSel = document.getElementById('labelMode');
+    const root = KEYS.indexOf(keySel?.value || 'C');
+    const scaleName = scaleSel?.value || '- Major (Ionian)';
+    const labelMode = labelModeSel?.value || 'both';
+
+    const prevDpr = (typeof dpr!=='undefined'? dpr:1);
+    if (typeof dpr!=='undefined') dpr = 1; // エクスポートはDPR=1固定
+
+    const off = document.createElement('canvas');
+    off.width = targetW; off.height = targetH;
+    const ctx = off.getContext('2d');
+    ctx.setTransform(1,0,0,1,0,0);
+
+    // 板面・フレット・弦などをライト配色で描画
+    const g = layoutOn(ctx, off, STRINGS, frets, LightStyle);
+
+// ===== PDF用：既存フレット番号を白で隠してから、太く大きく描き直す =====
+(() => {
+  // 1) 既存番号を「白帯」で隠す（0フレットも含めて左に広げる & 縁取り防止）
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.shadowColor = 'rgba(0,0,0,0)';
+  ctx.lineWidth = 0;
+  ctx.strokeStyle = 'rgba(0,0,0,0)';
+  ctx.fillStyle = '#ffffff'; // PDFの地色が白
+  const fretW   = g.fbW / frets;
+  const extraL  = Math.round(fretW * 0.6);                 // 左に少し余裕
+  const wipeH   = Math.round(g.fbH * 0.03);                // 帯の高さ（調整可）
+  const wipeY = g.fbY + g.fbH + Math.round(g.fbH * 0.01);    // 少し下にずらす（指板より下に白帯を置く）
+  const overscan = 2;                                      // 周囲に2px余分に塗る
+  ctx.fillRect(
+    g.baseX - extraL - overscan,
+    wipeY - overscan,
+    g.fbW + extraL + overscan * 2,
+    wipeH + overscan * 2
+  );
+  ctx.restore();
+
+  // 2) 大きい番号を上から描き直す
+  const FRET_FONT_SCALE = 0.6;                             // 好みで 1.2〜2.0
+  const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
+  ctx.font = `700 ${fontPx}px system-ui`;
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const y = g.fbY + g.fbH + Math.round(fontPx * 0.10);     // 指板の少し下
+  // 0〜frets を等間隔で再配置（0フレットはナット左側）
+  for (let f = 0; f <= frets; f++) {
+    const cx = (f === 0)
+      ? g.baseX - fretW / 2
+      : g.baseX + fretW * (f - 0.5);
+    ctx.fillText(String(f), cx, y);
+  }
+})();
+    // スケール計算（既存と同じ）
+    const {intervals, degrees} = SCALES[scaleName];
+    const pcs = new Set(intervals.map(i => (root + i) % 12));
+    const degreeMap = new Map(); intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
+ const NOTE_RADIUS_SCALE = 1.8; // 好みで 1.1〜1.6 などに
+ const r = getNoteRadius() * NOTE_RADIUS_SCALE;
+
+    // 音符を描画（非表示状態も反映）
+    for(let s=0; s<STRINGS; s++){
+      const openPc = N_SHARP.indexOf(TUNING[s]);
+      const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+      const pc0 = openPc % 12;
+      const k0 = `${s}:0`;
+      if (!hiddenMap[mapKey].has(k0) && pcs.has(pc0)){
+        drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, LightStyle);
+      }
+      for(let f=1; f<=frets; f++){
+        const prevX = g.baseX + g.fbW * ((f-1)/frets);
+        const thisX = g.baseX + g.fbW * (f/frets);
+        const cx = (prevX + thisX)/2;
+        const pc = (openPc + f) % 12;
+        const k = `${s}:${f}`;
+        if (!hiddenMap[mapKey].has(k) && pcs.has(pc)){
+          drawNote(ctx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, LightStyle);
+        }
+      }
+    }
+
+    if (typeof dpr!=='undefined') dpr = prevDpr;
+    return off;
+  }
+
+  const off = document.createElement('canvas');
+  off.width = outW;
+  off.height = totalH;
+ const ctx = off.getContext('2d');
+ ctx.clearRect(0, 0, off.width, off.height);
+ // 背景を完全な白で塗って透明を無くす
+ ctx.save();
+ ctx.fillStyle = '#ffffff';
+ ctx.fillRect(0, 0, off.width, off.height);
+ ctx.restore();
+
+  // タイトル（黒）＋メタ（グレー）※メタは getMetaLine() を使う現行仕様のまま
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.font = `700 ${titleFontPx}px system-ui`;
+  ctx.fillText(getPresetTitle(), titlePad, titlePad);
+  ctx.font = `500 ${metaFontPx}px system-ui`;
+  ctx.fillStyle = '#333333';
+  ctx.fillText(getMetaLine(), titlePad, titlePad + titleFontPx + Math.round(metaFontPx * 0.4));
+
+  // 各キャンバスをライト配色で再描画して貼り付け（＋ 小見出し）
+  let yPos = titleAreaH;
+  list.forEach((src, i) => {
+    if (i > 0) {
+      ctx.font = `600 ${subFontPx}px system-ui`;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(posTitles[i-1] || `ポジション${i}`, Math.round(outW * 0.01), yPos);
+      yPos += (subFontPx + subPad);
+    }
+
+    const mapKey = (i===0) ? 'main' : ids[i-1]; // 上段は 'main'、以下は各ID
+    const lightCanvas = renderLightSnapshot(outW, scaledHeights[i], mapKey);
+    ctx.drawImage(lightCanvas, 0, yPos);
+    yPos += scaledHeights[i];
+    if (i < list.length - 1) yPos += gap;
+  });
+
+  return off;
+}
+
+  function exportPDF() {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF) { alert('PDFライブラリ（jsPDF）が読み込めていません'); return; }
+
+    const composed = composeExportCanvas();
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const m = PAGE_MM.margin;
+    const contentW = PAGE_MM.w - m * 2;
+    const contentH = PAGE_MM.h - m * 2;
+
+    const imgWmm = contentW;
+    const imgHmm = (contentW * composed.height) / composed.width;
+    // 高さが足りなければ等比で縮小 → 1ページに収める
+    const scale = Math.min(1, contentH / imgHmm);
+    const drawW = imgWmm * scale;
+    const drawH = imgHmm * scale;
+    const x = m + (contentW - drawW) / 2;
+    const y = m + (contentH - drawH) / 2;
+
+    const dataURL = composed.toDataURL('image/png');
+    doc.addImage(dataURL, 'PNG', x, y, drawW, drawH, undefined, 'FAST');
+
+    const name = getPresetTitle().replace(/[\\/:*?"<>|]/g, '_') || 'export';
+    doc.save(`${name}.pdf`);
+  }
+
+  // 既存ボタンにだけハンドラを追加（DOM/CSSは一切変更しない）
+  const btn = document.getElementById('btnExportPdf');
+  if (btn) btn.addEventListener('click', exportPDF);
+})();
 </script>
+
+
 </body>
 </html>
