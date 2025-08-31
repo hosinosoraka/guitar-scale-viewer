@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scale Viewer Ver 1.08</title>
+  <title>Guitar Scale Viewer Ver 1.09</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -72,6 +72,16 @@
     .row-actions{ display:flex; gap:8px; }
     .empty{ color:var(--muted); padding:12px; font-size:13px; }
     .notice{ color:#9aa4b2; font-size:12px; margin-top:8px; }
+
+/* === 横長で小さい +1 / -1 ボタン用 === */
+#btnToggleChordTones { width:auto; }
+#btnPosShiftDown,
+#btnPosShiftUp,
+#btnToggleChordTones {
+  width: auto;          /* ← 横幅を自動に戻す！ここが重要 */
+  padding: 4px 14px;    /* 横は広め、縦は狭め */
+
+}
   </style>
 </head>
 <body>
@@ -114,7 +124,9 @@
   <canvas id="fretboard" width="1400" height="520"></canvas>
   <div class="legend" id="legend"></div>
   <div class="foot">
-    クリックでポジションの非表示/再表示（上段/下段ともに） Ver 1.08（PDF出力の追加、及びバグフィックス）
+    クリックでポジションの非表示/再表示（上段/下段ともに）
+    <br>Ver 1.08（PDF出力の追加、及びバグフィックス）
+    <br>Ver 1.09（ポジションのシフトボタンを追加、コードトーン表示のボタン追加）
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -154,6 +166,16 @@
 
     <div class="notice" id="presetMeta"></div>
   </div>
+  <!-- 7ポジ 横シフトバー（キーも追従して更新） -->
+  <div class="card" id="posShiftBar" style="display:flex;justify-content:center;align-items:center;gap:12px;">
+    <button id="btnPosShiftDown">-1</button>
+    <button id="btnPosShiftUp">+1</button>
+    <div style="font-size:12px;color:var(--muted);">7ポジションを横にシフト（キーも±1）</div>
+    <button id="btnToggleChordTones">コードトーンのみ表示</button>
+
+  </div>
+
+
 
   <!-- 下段：7ポジション（名前は編集可） -->
   <section class="positions" id="positions">
@@ -247,6 +269,45 @@
   const btnExportPreset = document.getElementById('btnExportPreset');
   const btnImportPreset = document.getElementById('btnImportPreset');
   const importFile = document.getElementById('importFile');
+  // ▼ 7ポジ 横シフト：hiddenMap の座標を ±1 ずらし、キーも ±1 変更
+  function shiftPositionsMask(delta){
+    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+    POSITION_IDS.forEach(id => {
+      const src = hiddenMap[id];
+      const dst = new Set();
+      src.forEach(key => {
+        const m = /^(\d+):(\d+)$/.exec(key);
+        if(!m) return;
+        const s = parseInt(m[1], 10);
+        const f = parseInt(m[2], 10) + delta;
+        if (f < 0 || f > frets) return; // 範囲外は捨てる
+        dst.add(`${s}:${f}`);
+      });
+      hiddenMap[id] = dst;
+    });
+  }
+  function stepKey(delta){
+    const keys = KEYS;
+    let idx = keys.indexOf(keySel.value);
+    if (idx < 0) idx = 0;
+    keySel.value = keys[(idx + delta + 12) % 12];
+  }
+  function onPosShift(delta){
+    shiftPositionsMask(delta); // シェイプを物理的に1フレット移動
+    stepKey(delta);            // UIのキーも ±1 進める
+    drawAll();                 // リセットはしない（隠し状態維持）
+  }
+  document.getElementById('btnPosShiftUp')?.addEventListener('click', ()=> onPosShift(+1));
+  document.getElementById('btnPosShiftDown')?.addEventListener('click', ()=> onPosShift(-1));
+
+// コードトーントグル
+const btnToggleChord = document.getElementById('btnToggleChordTones');
+btnToggleChord?.addEventListener('click', () => {
+  chordTonesOnly = !chordTonesOnly;
+  btnToggleChord.textContent = chordTonesOnly ? 'コードトーン再表示' : 'コードトーンのみ表示';
+  drawAll();
+});
+
 
   // 下段ポジション名の要素
   const posNameEls = {};
@@ -268,7 +329,13 @@
   // 非表示セット
   const hiddenMap = { main:new Set() }; POSITION_IDS.forEach(id=> hiddenMap[id]=new Set());
 
-  /* ===== 共通描画ユーティリティ ===== */
+  /* === コードトーン表示トグル === */
+let chordTonesOnly = false;
+function isChordToneInterval(interval){
+  return interval === 0 || interval === 3 || interval === 4 || interval === 7 || interval === 10 || interval === 11;
+}
+
+/* ===== 共通描画ユーティリティ ===== */
   const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   function styleSnapshot(){
     return {
@@ -416,7 +483,8 @@
 
       const pc0 = openPc % 12;
       const k0 = `${s}:0`;
-      if (!hiddenMap.main.has(k0) && pcs.has(pc0)){
+      const interval0 = (pc0 - root + 12) % 12;
+        if (!hiddenMap.main.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
         drawNote(mainCtx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
       }
       for(let f=1; f<=frets; f++){
@@ -425,7 +493,8 @@
         const cx = (prevX + thisX)/2;
         const pc = (openPc + f) % 12;
         const k = `${s}:${f}`;
-        if (!hiddenMap.main.has(k) && pcs.has(pc)){
+        const interval = (pc - root + 12) % 12;
+                if (!hiddenMap.main.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
           drawNote(mainCtx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
         }
       }
@@ -474,7 +543,8 @@
 
       const pc0 = openPc % 12;
       const k0 = `${s}:0`;
-      if (!hiddenMap[canvasId].has(k0) && pcs.has(pc0)){
+      const interval0 = (pc0 - root + 12) % 12;
+    if (!hiddenMap[canvasId].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
         drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
       }
       for(let f=1; f<=frets; f++){
@@ -483,7 +553,8 @@
         const cxX = (prevX + thisX)/2;
         const pc = (openPc + f) % 12;
         const k = `${s}:${f}`;
-        if (!hiddenMap[canvasId].has(k) && pcs.has(pc)){
+        const interval = (pc - root + 12) % 12;
+    if (!hiddenMap[canvasId].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
           drawNote(ctx, cxX, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
         }
       }
@@ -815,7 +886,8 @@ function composeExportCanvas() {
       const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
       const pc0 = openPc % 12;
       const k0 = `${s}:0`;
-      if (!hiddenMap[mapKey].has(k0) && pcs.has(pc0)){
+      const interval0 = (pc0 - root + 12) % 12;
+      if (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
         drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, LightStyle);
       }
       for(let f=1; f<=frets; f++){
@@ -824,7 +896,8 @@ function composeExportCanvas() {
         const cx = (prevX + thisX)/2;
         const pc = (openPc + f) % 12;
         const k = `${s}:${f}`;
-        if (!hiddenMap[mapKey].has(k) && pcs.has(pc)){
+        const interval = (pc - root + 12) % 12;
+      if (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
           drawNote(ctx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, LightStyle);
         }
       }
