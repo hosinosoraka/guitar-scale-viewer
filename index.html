@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scale Viewer Ver 1.09</title>
+  <title>Guitar Scale Viewer Ver 1.10</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -82,6 +82,12 @@
   padding: 4px 14px;    /* 横は広め、縦は狭め */
 
 }
+
+#btnToggleDragErase {
+  width: auto;
+  padding: 4px 14px;
+}
+
   </style>
 </head>
 <body>
@@ -125,8 +131,9 @@
   <div class="legend" id="legend"></div>
   <div class="foot">
     クリックでポジションの非表示/再表示（上段/下段ともに）
-    <br>Ver 1.08（PDF出力の追加、及びバグフィックス）
-    <br>Ver 1.09（ポジションのシフトボタンを追加、コードトーン表示のボタン追加）
+    <br>Ver 1.08　PDF出力の追加、及びバグフィックス
+    <br>Ver 1.09　ポジションのシフトボタンを追加、コードトーン表示のボタン追加
+    <br>Ver 1.10　ドラッグ消しゴムのボタンを追加
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -172,6 +179,7 @@
     <button id="btnPosShiftUp">+1</button>
     <div style="font-size:12px;color:var(--muted);">7ポジションを横にシフト（キーも±1）</div>
     <button id="btnToggleChordTones">コードトーンのみ表示</button>
+    <button id="btnToggleDragErase" title="マウス/タッチでなぞって非表示（ショートカット: E）">ドラッグ消しゴム：OFF</button>
 
   </div>
 
@@ -603,6 +611,95 @@ function isChordToneInterval(interval){
 
     (rerender || (()=>{ drawMain(); drawPositions(); }))();
   }
+  // ==== 追加：ドラッグで非表示にする「消しゴム」機能 ====
+  function hideAtPoint(mapKey, canvasEl, x, y){
+    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+    const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
+    const M = {left: 120, right: 24, top: 36, bottom: 56};
+    const fbY = M.top, fbH = h - M.top - M.bottom;
+    const baseX = M.left, fbW = w - baseX - M.right;
+    const cellW = fbW / frets;
+    const openCx = baseX - cellW * 0.5;
+
+    const sFloat = ((y - fbY) / fbH) * STRINGS - 0.5;
+    let s = Math.round(sFloat); s = Math.min(STRINGS-1, Math.max(0, s));
+
+    const centers = [openCx];
+    for (let f=1; f<=frets; f++){
+      const prevX = baseX + fbW * ((f-1)/frets);
+      const thisX = baseX + fbW * (f/frets);
+      centers.push( (prevX + thisX)/2 );
+    }
+    let nearestF = 0, best = Infinity;
+    centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
+    const key = `${s}:${nearestF}`;
+    hiddenMap[mapKey].add(key);
+  }
+
+  let dragEraseEnabled = false;
+  let isErasing = false;
+
+  function setDragEraseUI(){
+    const btn = document.getElementById('btnToggleDragErase');
+    if (btn) btn.textContent = 'ドラッグ消しゴム：' + (dragEraseEnabled ? 'ON' : 'OFF');
+  }
+
+  function attachDragErase(mapKey, canvasEl, rerender){
+    const getXY = (ev) => {
+      const rect = canvasEl.getBoundingClientRect();
+      return {
+        x: (ev.clientX ?? (ev.touches && ev.touches[0]?.clientX) ?? 0) - rect.left,
+        y: (ev.clientY ?? (ev.touches[0]?.clientY) ?? 0) - rect.top
+      };
+    };
+
+    const onDown = (ev) => {
+      if (!dragEraseEnabled) return;
+      isErasing = true;
+      const {x,y} = getXY(ev);
+      hideAtPoint(mapKey, canvasEl, x, y);
+      (rerender||(()=>{ drawMain(); drawPositions(); }))();
+      ev.preventDefault?.();
+    };
+    const onMove = (ev) => {
+      if (!dragEraseEnabled || !isErasing) return;
+      const {x,y} = getXY(ev);
+      hideAtPoint(mapKey, canvasEl, x, y);
+      (rerender||(()=>{ drawMain(); drawPositions(); }))();
+      ev.preventDefault?.();
+    };
+    const onUp = () => { isErasing = false; };
+
+    canvasEl.addEventListener('pointerdown', onDown);
+    canvasEl.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    canvasEl.addEventListener('pointerleave', onUp);
+    // touch fallback
+    canvasEl.addEventListener('touchstart', onDown, {passive:false});
+    canvasEl.addEventListener('touchmove', onMove, {passive:false});
+    window.addEventListener('touchend', onUp);
+  }
+
+  // Eキー／ボタンクリックでON/OFF
+  document.addEventListener('keydown', (e)=>{
+    if (e.key && e.key.toLowerCase() === 'e'){
+      dragEraseEnabled = !dragEraseEnabled;
+      setDragEraseUI();
+    }
+  });
+  document.getElementById('btnToggleDragErase')?.addEventListener('click', ()=>{
+    dragEraseEnabled = !dragEraseEnabled;
+    setDragEraseUI();
+  });
+
+  function bindAllDragErase(){
+    attachDragErase('main', mainCanvas, drawMain);
+    POSITION_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) attachDragErase(id, el, ()=>drawOnePos(id));
+    });
+  }
+
 
   /* ===== プリセット（localStorage） ===== */
   const LS_KEY = 'gsv_presets_v1';
@@ -732,6 +829,8 @@ function isChordToneInterval(interval){
      applyDefaultTitles();
      drawAll();
      loadPresetList();
+     bindAllDragErase();
+     setDragEraseUI();
    })();
 
 
