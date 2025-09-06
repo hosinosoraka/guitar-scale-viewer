@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scale Viewer Ver 1.10</title>
+  <title>Guitar Scale Viewer Ver 2.0.0</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -24,11 +24,35 @@
       padding:12px 16px; border-bottom:1px solid #232735;
       background:linear-gradient(180deg, rgba(21,24,35,.85), rgba(20,23,32,.85));
     }
-    .toolbar{
-      display:grid; gap:10px;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      align-items:end; max-width:90vw; margin:0 auto;
-    }
+/* 共通の .toolbar はデフォルト最小限（プリセットなど他所は今まで通り） */
+.toolbar{
+  display:grid; gap:10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items:end; max-width:90vw; margin:0 auto;
+}
+
+/* ▼ 上段（ヘッダー）のツールバーだけを “左詰め・収縮” にする */
+.toolbar.toolbar--main{
+  /* 列の自動生成を「中身に合わせて詰める」モードに */
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+}
+
+/* 上段だけはコントロールの 100% 幅を解除してコンテンツ幅に */
+.toolbar.toolbar--main select,
+.toolbar.toolbar--main button,
+.toolbar.toolbar--main input[type="text"]{
+  width: auto;
+}
+
+/* 1列目（キー）と2列目（スケール）の最小/最大幅は上段だけに適用 */
+.toolbar.toolbar--main > div:first-child{  /* キー */
+  max-width: 96px;   /* #keySelect (88〜96px) と整合 */
+}
+.toolbar.toolbar--main > div:nth-child(2){ /* スケール */
+  min-width: 140px;
+}
     label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
     input[type="text"], select, button{
       width:100%; padding:10px 12px; border-radius:12px;
@@ -36,6 +60,28 @@
     }
     select:focus, button:focus, input[type="text"]:focus { border-color: var(--accent); }
 
+    /* --- ここから追記 --- */
+
+    /* 1) キーのセレクト幅を圧縮して、右側ボタンの折返しを防止 */
+    #keySelect{
+      width: 88px;      /* 目安：現状の約1/2。必要に応じて 80–96px で微調整 */
+      min-width: 80px;
+    }
+
+    /* 2) 上段の「全表示」「全消去」「コピー」を折り返さない＋最小幅を確保 */
+    #btnShowAllMain,
+    #btnHideAllMain,
+    #btnCopyMain{
+      white-space: nowrap;   /* 折返し防止 */
+    }
+    #btnShowAllMain,
+    #btnHideAllMain{
+      min-width: 84px;       /* 日本語2語の折返し防止 */
+    }
+    #btnCopyMain{
+      min-width: 68px;       /* 「コピー」の最小幅 */
+    }
+    /* --- 追記ここまで --- */
     main{ padding:16px; display:grid; place-items:center; }
     .card{
       width:100%; max-width:90vw; background:var(--panel);
@@ -55,12 +101,48 @@
     .pos-name{ color:var(--ink); font-weight:600; outline: none; padding: 2px 6px; border-radius: 8px; }
     .pos-name:focus{ box-shadow: 0 0 0 2px rgba(79,140,255,0.35); background: rgba(79,140,255,0.08); }
     .pos-canvas{ width:100%; height:360px; display:block; border-radius:12px; }
-    .pos-actions{ display:flex; gap:8px; }
-    .icon-btn{ border:1px solid #2a2f40; background:transparent; color:var(--ink); padding:6px 10px; border-radius:10px; cursor:pointer; }
+.pos-actions{ display:flex; gap:8px; }
+
+/* 下段アクションボタンの折返し方針 */
+.pos-actions { flex-wrap: wrap; }   /* モバイル等は折返し許容 */
+@media (min-width: 768px){
+  .pos-actions { flex-wrap: nowrap; }  /* PC幅では横一列に */
+}
+
+/* 下段アクションボタンの折返し防止（必要な場合のみ） */
+.pos-actions { flex-wrap: wrap; } /* 折返し許容なら wrap のまま */
+@media (min-width: 768px){
+  .pos-actions { flex-wrap: nowrap; }
+}
+
+.icon-btn{ border:1px solid #2a2f40; background:transparent; color:var(--ink); padding:6px 10px; border-radius:10px; cursor:pointer; }
+
+/* 下段アクションのうち「SHIFT / ペースト」は折り返し禁止＋最小幅を拡張 */
+.pos-actions .btnShiftOne,
+.pos-actions .btnPasteBoard{
+  white-space: nowrap;   /* ← ボタン内の改行を抑止 */
+  min-width: 108px;      /* ← 少し広げる（100〜120の範囲でお好みで） */
+}
+
+/* 「全表示」「全消去」「コピー」は今のままでもOKだが、気になるようなら最小幅を少し確保 */
+.pos-actions .btnShowAll{ min-width: 76px; }
+.pos-actions .btnHideAll{ min-width: 76px; }
+.pos-actions .btnCopyBoard{ min-width: 76px; }
     .icon-btn:hover{ border-color:var(--accent); }
 
     details.dropdown{ border:1px solid #2a2f40; border-radius:12px; background:var(--panel); overflow:hidden; }
-    details.dropdown > summary{ list-style:none; cursor:pointer; padding:10px 12px; border-radius:12px; outline:none; user-select:none; }
+details.dropdown > summary{
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  border-radius: 12px;
+  outline: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* ← タイトルと「▾」が左右にきれいに配置される */
+  width: 100%;                    /* ← クリック範囲がカード幅いっぱいになる */
+}
     details.dropdown[open] > summary{ border-bottom:1px solid #2a2f40; border-bottom-left-radius:0; border-bottom-right-radius:0; }
     details.dropdown .menu{ max-height:320px; overflow:auto; padding:4px 0; }
     .preset-item{ display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid #232735; cursor:pointer; }
@@ -73,26 +155,76 @@
     .empty{ color:var(--muted); padding:12px; font-size:13px; }
     .notice{ color:#9aa4b2; font-size:12px; margin-top:8px; }
 
-/* === 横長で小さい +1 / -1 ボタン用 === */
-#btnToggleChordTones { width:auto; }
+/* === 横長で小さい +1 / -1 ボタン用（※posShift用は小さいまま） === */
 #btnPosShiftDown,
-#btnPosShiftUp,
-#btnToggleChordTones {
-  width: auto;          /* ← 横幅を自動に戻す！ここが重要 */
-  padding: 4px 14px;    /* 横は広め、縦は狭め */
-
-}
-
-#btnToggleDragErase {
+#btnPosShiftUp {
   width: auto;
   padding: 4px 14px;
 }
+
+/* === ツールバーに並ぶボタンの高さを揃える（キー/スケール/PDF などと同じ） === */
+#btnToggleChordTones,
+#btnToggleDragErase {
+  width: 100%;
+  padding: 10px 12px;  /* 他ボタンと同じ */
+}
+
+<style id="preset-tweaks">
+  /* プリセット名の下のサブ情報を完全に非表示 */
+  .preset-sub{ display:none !important; }
+
+  /* リスト行をスリムに */
+  .preset-item{
+    display:flex;            /* もし既存でflexならこの指定は重複OK */
+    align-items:center;
+    justify-content:space-between;
+    padding: 6px 10px;       /* ← 上下を小さく */
+    gap: 8px;
+  }
+  .preset-meta .preset-name{
+    line-height: 1.2;        /* 行の背を低く */
+    margin: 0;
+  }
+
+/* 右側ボタン（読み込む／ゴミ箱）を横長・低背に */
+.row-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:nowrap;              /* ← 行を折り返さない */
+}
+
+.row-actions .icon-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 12px;              /* 横は少し長め、縦は薄く */
+  height:28px;                   /* 行の背を下げる */
+  line-height:1;
+  font-size:12px;
+  border-radius:6px;
+  white-space:nowrap;            /* ← ボタン内の文字折り返し禁止 */
+}
+
+/* 「読み込む」だけ少しワイドにして折り返し防止 */
+.row-actions .icon-btn:first-child{
+  min-width:96px;                /* 環境次第で 88〜110px で調整 */
+  padding-inline:14px;
+}
+
+/* ゴミ箱はコンパクトのまま */
+.row-actions .icon-btn[title="削除"]{
+  min-width:0;
+  padding-inline:8px;
+}
+</style>
+
 
   </style>
 </head>
 <body>
 <header>
-  <div class="toolbar">
+  <div class="toolbar toolbar--main">
     <div>
       <label for="keySelect">キー</label>
       <select id="keySelect"></select>
@@ -113,16 +245,32 @@
       <label for="fretCount">フレット数（12〜24）</label>
       <select id="fretCount"></select>
     </div>
-        <div>
+    <div>
+      <label>&nbsp;</label>
+      <button id="btnToggleChordTones">コードトーンのみ表示</button>
+    </div>
+    <!-- ▼ 追加：コードトーンの“直下”にドラッグ消しゴムボタンを配置 -->
+    <div>
+      <label>&nbsp;</label>
+      <button id="btnToggleDragErase" title="マウス/タッチでなぞって非表示（ショートカット: E）">ドラッグ消しゴム：OFF</button>
+    </div>
+    <div>
       <label>&nbsp;</label>
       <button id="btnExportPdf">PDFで保存</button>
     </div>
-<div>
+    <div>
       <label>&nbsp;</label>
-      <button id="resetHiddenMain">上段の非表示リセット</button>
+      <div style="display:flex; gap:8px;">
+        <button id="btnShowAllMain">全表示</button>
+        <button id="btnHideAllMain">全消去</button>
+        <button id="btnCopyMain">コピー</button>
+      </div>
     </div>
+
+
   </div>
 </header>
+
 
 <main>
 <!-- 上段：全体指板 -->
@@ -131,9 +279,8 @@
   <div class="legend" id="legend"></div>
   <div class="foot">
     クリックでポジションの非表示/再表示（上段/下段ともに）
-    <br>Ver 1.08　PDF出力の追加、及びバグフィックス
-    <br>Ver 1.09　ポジションのシフトボタンを追加、コードトーン表示のボタン追加
-    <br>Ver 1.10　ドラッグ消しゴムのボタンを追加
+    <br>
+    <br><b><font size="4" color=#00FF00>Ver 2.0.0になりました。多くの改善がされてますので詳しくはReadMeを一読ください。</font></B>
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -173,38 +320,133 @@
 
     <div class="notice" id="presetMeta"></div>
   </div>
-  <!-- 7ポジ 横シフトバー（キーも追従して更新） -->
-  <div class="card" id="posShiftBar" style="display:flex;justify-content:center;align-items:center;gap:12px;">
-    <button id="btnPosShiftDown">-1</button>
-    <button id="btnPosShiftUp">+1</button>
-    <div style="font-size:12px;color:var(--muted);">7ポジションを横にシフト（キーも±1）</div>
-    <button id="btnToggleChordTones">コードトーンのみ表示</button>
-    <button id="btnToggleDragErase" title="マウス/タッチでなぞって非表示（ショートカット: E）">ドラッグ消しゴム：OFF</button>
-
-  </div>
 
 
 
-  <!-- 下段：7ポジション（名前は編集可） -->
+
+  <!-- 下段：8ポジション（名前は編集可） -->
   <section class="positions" id="positions">
+
     <div class="pos-card">
       <div class="pos-title">
         <span class="pos-name" contenteditable="true" data-pos="pos-6-I" spellcheck="false" title="クリックして名前を編集"></span>
-        <div class="pos-actions"><button data-pos="pos-6-I" class="icon-btn btnClear">非表示リセット</button></div>
+<div class="pos-actions">
+  <button data-pos="pos-6-I" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-6-I" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-6-I" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-6-I" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-6-I" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-6-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+
       </div>
       <canvas class="pos-canvas" id="pos-6-I"></canvas>
     </div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-6-M" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-6-M" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-6-M"></canvas></div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-6-P" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-6-P" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-6-P"></canvas></div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-I" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-I" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-I"></canvas></div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-M" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-M" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-M"></canvas></div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-5-P" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-5-P" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-5-P"></canvas></div>
-    <div class="pos-card"><div class="pos-title"><span class="pos-name" contenteditable="true" data-pos="pos-4-I" spellcheck="false" title="クリックして名前を編集"></span><div class="pos-actions"><button data-pos="pos-4-I" class="icon-btn btnClear">非表示リセット</button></div></div><canvas class="pos-canvas" id="pos-4-I"></canvas></div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-6-M" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-6-M" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-6-M" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-6-M" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-6-M" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-6-M" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-6-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-6-M"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-6-P" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-6-P" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-6-P" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-6-P" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-6-P" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-6-P" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-6-P" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-6-P"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-I" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-5-I" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-5-I" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-5-I" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-5-I" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-5-I" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-5-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-I"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-M" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-5-M" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-5-M" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-5-M" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-5-M" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-5-M" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-5-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-M"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-5-P" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-5-P" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-5-P" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-5-P" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-5-P" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-5-P" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-5-P" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-5-P"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-4-I" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-4-I" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-4-I" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-4-I" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-4-I" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-4-I" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-4-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-4-I"></canvas>
+    </div>
+
+    <div class="pos-card">
+      <div class="pos-title">
+        <span class="pos-name" contenteditable="true" data-pos="pos-4-M" spellcheck="false" title="クリックして名前を編集"></span>
+<div class="pos-actions">
+  <button data-pos="pos-4-M" data-delta="-1" class="icon-btn btnShiftOne">SHIFT -1</button>
+  <button data-pos="pos-4-M" data-delta="1"  class="icon-btn btnShiftOne">SHIFT +1</button>
+  <button data-pos="pos-4-M" class="icon-btn btnShowAll">全表示</button>
+  <button data-pos="pos-4-M" class="icon-btn btnHideAll">全消去</button>
+  <button data-pos="pos-4-M" class="icon-btn btnCopyBoard">コピー</button>
+  <button data-pos="pos-4-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+      </div>
+      <canvas class="pos-canvas" id="pos-4-M"></canvas>
+    </div>
+
   </section>
+
 </main>
 
 <script>
-  /* ===== 基本設定 ===== */
+  if (typeof window.showMap === 'undefined') window.showMap = {};
+/* ===== 基本設定 ===== */
   const STRINGS = 6;
   const NOTE_RADIUS = 18;  // PC
   const INLAY_R = 5.5, INLAY_R_12 = 6.5;
@@ -213,7 +455,7 @@
   let dpr = 1; function syncDPR(){ dpr = Math.max(1, Math.min(2, window.devicePixelRatio||1)); }
 
   /* デフォルトのポジション名 */
-  const POSITION_IDS = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I'];
+  const POSITION_IDS = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I','pos-4-M'];
   const DEFAULT_TITLES = {
     'pos-6-I':'タイトル１　（例　6弦スタート｜人差し指）等',
     'pos-6-M':'タイトル２',
@@ -222,41 +464,62 @@
     'pos-5-M':'タイトル５',
     'pos-5-P':'タイトル６',
     'pos-4-I':'タイトル７',
+    'pos-4-M':'タイトル８',
   };
+
+  /* 下段ボードの独立状態（キー／スケール） */
+  const BOARD_STATE = {};
+  POSITION_IDS.forEach(id => {
+    // 初期状態は必ず All Position（キーは C で固定）
+    BOARD_STATE[id] = { key: 'C', scale: '- All Position' };
+  });
+
+  function getBoardKey(id){ return (BOARD_STATE[id] && BOARD_STATE[id].key) || 'C'; }
+  function getBoardScale(id){ return (BOARD_STATE[id] && BOARD_STATE[id].scale) || '- All Position'; }
+  function setBoardKey(id, key){ if (BOARD_STATE[id]) BOARD_STATE[id].key = key; }
+  function setBoardScale(id, scale){ if (BOARD_STATE[id]) BOARD_STATE[id].scale = scale; }
+
+
+
 
   /* 音名・スケール */
   const N_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const N_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
   const KEYS    = [...N_SHARP];
   const SCALES = {
+
+    // --- 全表示 ---
+    "- All Position": { intervals:[0,1,2,3,4,5,6,7,8,9,10,11], degrees:["1","b9th","9th","m3","3","11th","b5/#11","5","b13","13th","m7","7"] },
+    // --- Major 系 ---
     "- Major (Ionian)": { intervals:[0,2,4,5,7,9,11], degrees:["1","9th","3","11th","5","13th","7"] },
-    "Dorian": { intervals:[0,2,3,5,7,9,10], degrees:["1","9th","m3","11th","5","13th","m7"] },
-    "Phrygian": { intervals:[0,1,3,5,7,8,10], degrees:["1","b9th","m3","11th","5","m6","m7"] },
-    "Lydian": { intervals:[0,2,4,6,7,9,11], degrees:["1","9th","3","#4","5","13th","7"] },
-    "Mixolydian": { intervals:[0,2,4,5,7,9,10], degrees:["1","9th","3","11th","5","13th","m7"] },
-    "Natural Minor (Aeolian)":  { intervals:[0,2,3,5,7,8,10], degrees:["1","9th","m3","11th","5","m6","m7"] },
-    "Locrian": { intervals:[0,1,3,5,6,8,10], degrees:["1","b9th","m3","11th","b5","m6","m7"] },
-    "- Melodic Minor": { intervals:[0,2,3,5,7,9,11], degrees:["1","9th","m3","11th","5","13th","7"] },
-    "Dorian b2": { intervals:[0,1,3,5,7,9,10], degrees:["1","b9th","m3","11th","5","13th","m7"] },
-    "Lydian #5": { intervals:[0,2,4,6,8,9,11], degrees:["1","9th","3","#4","#5","13th","7"] },
-    "Lydian b7": { intervals:[0,2,4,6,7,9,10], degrees:["1","9th","3","#4","5","13th","m7"] },
-    "Mixolydian b6": { intervals:[0,2,4,5,7,8,10], degrees:["1","9th","3","11th","5","m6","m7"] },
-    "Locrian #2": { intervals:[0,2,3,5,6,8,10], degrees:["1","9th","m3","11th","b5","m6","m7"] },
-    "Altered (Super Locrian)": { intervals:[0,1,3,4,6,8,10], degrees:["1","b9th","#9th","3","b5","#11","b13","m7"] },
-    "- Harmonic Minor": { intervals:[0,2,3,5,7,8,11], degrees:["1","9th","m3","11th","5","m6","7"] },
-    "Locrian #6": { intervals:[0,1,3,5,6,9,10], degrees:["1","b9th","m3","11th","b5","13th","m7"] },
-    "Ionian #5": { intervals:[0,2,4,5,8,9,11], degrees:["1","9th","3","11th","#5","13th","7"] },
+    "Dorian":           { intervals:[0,2,3,5,7,9,10], degrees:["1","9th","m3","11th","5","13th","m7"] },
+    "Phrygian":         { intervals:[0,1,3,5,7,8,10], degrees:["1","b9th","m3","11th","5","m6","m7"] },
+    "Lydian":           { intervals:[0,2,4,6,7,9,11], degrees:["1","9th","3","#4","5","13th","7"] },
+    "Mixolydian":       { intervals:[0,2,4,5,7,9,10], degrees:["1","9th","3","11th","5","13th","m7"] },
+    "Natural Minor (Aeolian)": { intervals:[0,2,3,5,7,8,10], degrees:["1","9th","m3","11th","5","m6","m7"] },
+    "Locrian":          { intervals:[0,1,3,5,6,8,10], degrees:["1","b9th","m3","11th","b5","m6","m7"] },
+
+    // --- Melodic Minor 系 ---
+    "- Melodic Minor":  { intervals:[0,2,3,5,7,9,11], degrees:["1","9th","m3","11th","5","13th","7"] },
+    "Dorian b2":        { intervals:[0,1,3,5,7,9,10], degrees:["1","b9th","m3","11th","5","13th","m7"] },
+    "Lydian #5":        { intervals:[0,2,4,6,8,9,11], degrees:["1","9th","3","#4","#5","13th","7"] },
     "Dorian #4 (Ukrainian)": { intervals:[0,2,3,6,7,9,10], degrees:["1","9th","m3","#4","5","13th","m7"] },
     "Phrygian Dominant (Mixolydian b9 b13)": { intervals:[0,1,4,5,7,8,10], degrees:["1","b9th","3","11th","5","m6","m7"] },
-    "Lydian #2": { intervals:[0,3,4,6,7,9,11], degrees:["1","#2","3","#4","5","13th","7"] },
+    "Lydian #2":        { intervals:[0,3,4,6,7,9,11], degrees:["1","#2","3","#4","5","13th","7"] },
     "Ultralocrian (Super Locrian bb7)": { intervals:[0,1,3,4,6,8,9], degrees:["1","b9th","m3","3","b5","m6","bb7"] },
-    "- Half–Whole Diminished": { intervals: [0,1,3,4,6,7,9,10], degrees:["1","b9th","m3","3","b5","5","13th","m7"]},
-    "Whole–Half Diminished": { intervals: [0,2,3,5,6,8,9,11], degrees:["1","9th","m3","11th","b5","m6","13th","7"]},
-    "Major Pentatonic": { intervals:[0,2,4,7,9], degrees:["1","9th","3","5","13th"] },
-    "Minor Pentatonic": { intervals:[0,3,5,7,10], degrees:["1","m3","11th","5","m7"] },
-    "Blues": { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] },
 
+    // --- Diminished ---
+    "- Half–Whole Diminished": { intervals:[0,1,3,4,6,7,9,10], degrees:["1","b9th","m3","3","b5","5","13th","m7"] },
+    "Whole–Half Diminished":   { intervals:[0,2,3,5,6,8,9,11], degrees:["1","9th","m3","11th","b5","m6","13th","7"] },
+
+    // --- Pentatonic / Blues ---
+    "Major Pentatonic": { intervals:[0,2,4,7,9],    degrees:["1","9th","3","5","13th"] },
+    "Minor Pentatonic": { intervals:[0,3,5,7,10],   degrees:["1","m3","11th","5","m7"] },
+    "Blues":            { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] }
   };
+
+
+
   const TUNING = ["E","B","G","D","A","E"]; // 1弦→6弦
 
   /* ===== DOM ===== */
@@ -278,22 +541,36 @@
   const btnImportPreset = document.getElementById('btnImportPreset');
   const importFile = document.getElementById('importFile');
   // ▼ 7ポジ 横シフト：hiddenMap の座標を ±1 ずらし、キーも ±1 変更
-  function shiftPositionsMask(delta){
-    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-    POSITION_IDS.forEach(id => {
-      const src = hiddenMap[id];
-      const dst = new Set();
-      src.forEach(key => {
-        const m = /^(\d+):(\d+)$/.exec(key);
-        if(!m) return;
-        const s = parseInt(m[1], 10);
-        const f = parseInt(m[2], 10) + delta;
-        if (f < 0 || f > frets) return; // 範囲外は捨てる
-        dst.add(`${s}:${f}`);
-      });
-      hiddenMap[id] = dst;
+
+function shiftPositionsMask(delta){
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+  POSITION_IDS.forEach(id => {
+    const src = hiddenMap[id];
+    const dst = new Set();
+    if (!src) return;
+
+    // 既存の非表示マスクを ±1 フレットに平行移動
+    src.forEach(key => {
+      const m = /^(\d+):(\d+)$/.exec(key);
+      if(!m) return;
+      const s = parseInt(m[1], 10);
+      const f2 = parseInt(m[2], 10) + delta;
+      if (f2 < 0 || f2 > frets) return; // 範囲外は捨てる
+      dst.add(`${s}:${f2}`);
     });
-  }
+
+    // ★ 新しく入ってくる端の列を最初から「非表示」に追加
+    if (delta !== 0){
+      const enteringFret = (delta > 0) ? 0 : frets; // +1なら0F、-1なら最終Fが“新規入場”
+      for (let s = 0; s < STRINGS; s++){
+        dst.add(`${s}:${enteringFret}`);
+      }
+    }
+
+    hiddenMap[id] = dst;
+  });
+}
+
   function stepKey(delta){
     const keys = KEYS;
     let idx = keys.indexOf(keySel.value);
@@ -308,24 +585,31 @@
   document.getElementById('btnPosShiftUp')?.addEventListener('click', ()=> onPosShift(+1));
   document.getElementById('btnPosShiftDown')?.addEventListener('click', ()=> onPosShift(-1));
 
-// コードトーントグル
+// コードトーントグル（メインのみ再描画する）
 const btnToggleChord = document.getElementById('btnToggleChordTones');
 btnToggleChord?.addEventListener('click', () => {
   chordTonesOnly = !chordTonesOnly;
   btnToggleChord.textContent = chordTonesOnly ? 'コードトーン再表示' : 'コードトーンのみ表示';
-  drawAll();
+  // 下段8ボードは影響させない：メインのみ再描画
+  drawMain();
 });
+
 
 
   // 下段ポジション名の要素
   const posNameEls = {};
   document.querySelectorAll('.pos-name').forEach(el => { posNameEls[el.dataset.pos] = el; });
 
-  // セレクト初期化
-  KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
-  Object.keys(SCALES).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; scaleSel.appendChild(o); });
-  for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
-  keySel.value='C'; scaleSel.value='- Major (Ionian)'; fretSel.value='24';
+// セレクト初期化
+KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
+Object.keys(SCALES).forEach(n=>{ const o=document.createElement('option'); o.value=o.textContent=n; scaleSel.appendChild(o); });
+for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
+
+// ★ 起動直後は All Position にする（メイン）
+keySel.value = 'C';
+scaleSel.value = '- All Position';
+fretSel.value = '24';
+
 
   // デフォルト名を反映
   function applyDefaultTitles(){
@@ -334,8 +618,28 @@ btnToggleChord?.addEventListener('click', () => {
     });
   }
 
-  // 非表示セット
+  // 非表示セット（メインは空、下段は初期状態で「全ポジション非表示」）
   const hiddenMap = { main:new Set() }; POSITION_IDS.forEach(id=> hiddenMap[id]=new Set());
+
+// 強制表示（showMap）の初期化
+const showMap = { main:new Set() }; POSITION_IDS.forEach(id => showMap[id] = new Set());
+
+  // コピー＆ペースト用クリップボード
+  let clipboardBoard = null;
+
+
+  // 指定ボードの全マス（弦 × 0〜frets）を非表示にするヘルパ
+  function hideAllPositionsForBoard(mapKey){
+    const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
+    const set = hiddenMap[mapKey];
+    set.clear();
+    for (let s = 0; s < STRINGS; s++){
+      for (let f = 0; f <= frets; f++){
+        set.add(`${s}:${f}`);
+      }
+    }
+  }
+
 
   /* === コードトーン表示トグル === */
 let chordTonesOnly = false;
@@ -469,6 +773,16 @@ function isChordToneInterval(interval){
     return {pcs, degreeMap};
   }
 
+// スケール外のときは All Position の度数にフォールバック
+function getDegreeTextFor(pc, root, scaleName, degreeMap){
+  const interval = (pc - root + 12) % 12;
+  if (degreeMap && degreeMap.has(pc)) return degreeMap.get(pc);
+  const ap = SCALES['- All Position'];
+  if (ap && Array.isArray(ap.degrees) && ap.degrees[interval]) return ap.degrees[interval];
+  return String(interval); // 念のため
+}
+
+
   /* ===== 上段描画 ===== */
   function drawMain(){
     const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
@@ -489,22 +803,27 @@ function isChordToneInterval(interval){
       const openPc = N_SHARP.indexOf(TUNING[s]);
       const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
 
-      const pc0 = openPc % 12;
-      const k0 = `${s}:0`;
-      const interval0 = (pc0 - root + 12) % 12;
-        if (!hiddenMap.main.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
-        drawNote(mainCtx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
-      }
+const pc0 = openPc % 12;
+const k0 = `${s}:0`;
+const interval0 = (pc0 - root + 12) % 12;
+const forced0 = (showMap.main && showMap.main.has(k0));
+if (forced0 || (!hiddenMap.main.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))) {
+// 0フレット（開放）側
+drawNote(mainCtx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keySel.value, S);
+}
+
       for(let f=1; f<=frets; f++){
         const prevX = g.baseX + g.fbW * ((f-1)/frets);
         const thisX = g.baseX + g.fbW * (f/frets);
         const cx = (prevX + thisX)/2;
-        const pc = (openPc + f) % 12;
-        const k = `${s}:${f}`;
-        const interval = (pc - root + 12) % 12;
-                if (!hiddenMap.main.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
-          drawNote(mainCtx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
-        }
+const pc = (openPc + f) % 12;
+const k = `${s}:${f}`;
+const interval = (pc - root + 12) % 12;
+const forced = (showMap.main && showMap.main.has(k));
+if (forced || (!hiddenMap.main.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))) {
+// 1〜最終フレット側
+drawNote(mainCtx, cx,       cy, r, pc,  root, getDegreeTextFor(pc,  root, scaleName, degreeMap), labelMode, keySel.value, S);
+}
       }
     }
 
@@ -525,49 +844,81 @@ function isChordToneInterval(interval){
     const rect = mainCanvas.getBoundingClientRect();
     toggleHiddenAtPoint('main', mainCanvas, ev.clientX - rect.left, ev.clientY - rect.top, drawMain);
   });
-  resetHiddenMain.addEventListener('click', ()=>{ hiddenMap.main.clear(); drawMain(); });
+// 上段（メイン）の全表示／全消去
+const btnShowAllMain = document.getElementById('btnShowAllMain');
+const btnHideAllMain = document.getElementById('btnHideAllMain');
 
-  /* ===== 下段：7枚描画 ===== */
-  function drawOnePos(canvasId){
-    const el = document.getElementById(canvasId);
-    const ctx = el.getContext('2d', { alpha:true });
-    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-    const root = KEYS.indexOf(keySel.value);
-    const scaleName = scaleSel.value;
-    const labelMode = labelModeSel.value;
+btnShowAllMain?.addEventListener('click', ()=>{
+  hiddenMap.main.clear(); // 全表示
+  drawMain();
+});
 
-    const cssW = el.clientWidth|0, cssH = el.clientHeight|0;
-    el.width = Math.floor(cssW * dpr); el.height = Math.floor(cssH * dpr);
-    ctx.setTransform(dpr,0,0,dpr,0,0);
+btnHideAllMain?.addEventListener('click', ()=>{
+  hideAllPositionsForBoard('main'); // 全消去
+  drawMain();
+});
 
-    const S = styleSnapshot();
-    const g = layoutOn(ctx, el, STRINGS, frets, S);
-    const {pcs, degreeMap} = buildScale(root, scaleName);
-    const r = getNoteRadius();
+/* ===== 下段：8枚描画（各ボードは独立した key/scale を使用） ===== */
+function drawOnePos(canvasId){
+  const el = document.getElementById(canvasId);
+  if (!el) return;
 
-    for(let s=0; s<STRINGS; s++){
-      const openPc = N_SHARP.indexOf(TUNING[s]);
-      const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+  const ctx = el.getContext('2d', { alpha:true });
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
 
-      const pc0 = openPc % 12;
-      const k0 = `${s}:0`;
-      const interval0 = (pc0 - root + 12) % 12;
-    if (!hiddenMap[canvasId].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
-        drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, S);
-      }
-      for(let f=1; f<=frets; f++){
-        const prevX = g.baseX + g.fbW * ((f-1)/frets);
-        const thisX = g.baseX + g.fbW * (f/frets);
-        const cxX = (prevX + thisX)/2;
-        const pc = (openPc + f) % 12;
-        const k = `${s}:${f}`;
-        const interval = (pc - root + 12) % 12;
-    if (!hiddenMap[canvasId].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
-          drawNote(ctx, cxX, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, S);
-        }
+  // ▼ 下段ボードはメインと独立した key/scale を参照
+  const boardKey = getBoardKey(canvasId);
+  const boardScale = getBoardScale(canvasId);
+
+  const root = KEYS.indexOf(boardKey);
+  const scaleName = boardScale;
+  const labelMode = labelModeSel.value;
+
+  const cssW = el.clientWidth|0, cssH = el.clientHeight|0;
+  el.width = Math.floor(cssW * dpr); el.height = Math.floor(cssH * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  const S = styleSnapshot();
+  const g = layoutOn(ctx, el, STRINGS, frets, S);
+
+  // ▼ スケールの音（pcs）を“描画条件”にも使う（※下段はコードトーンON/OFFは無視）
+  const {intervals, degrees} = SCALES[scaleName];
+  const pcs = new Set(intervals.map(i => (root + i) % 12));
+  const degreeMap = new Map();
+  intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
+
+  const r = getNoteRadius();
+
+  for (let s = 0; s < STRINGS; s++){
+    const openPc = N_SHARP.indexOf(TUNING[s]);
+    const cy = g.fbY + g.fbH * (s + 0.5) / STRINGS;
+
+    // 0フレット（開放）
+    const pc0 = openPc % 12;
+    const k0 = `${s}:0`;
+    const forced0 = (showMap[canvasId] && showMap[canvasId].has(k0));
+if (forced0 || (!hiddenMap[canvasId].has(k0) && pcs.has(pc0))) {
+drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, boardKey, S);
+    }
+
+    // 1〜最終フレット
+    for (let f = 1; f <= frets; f++){
+      const prevX = g.baseX + g.fbW * ((f - 1) / frets);
+      const thisX = g.baseX + g.fbW * (f / frets);
+      const cxX = (prevX + thisX) / 2;
+      const pc = (openPc + f) % 12;
+      const k = `${s}:${f}`;
+      const forced = (showMap[canvasId] && showMap[canvasId].has(k));
+if (forced || (!hiddenMap[canvasId].has(k) && pcs.has(pc))) {
+// 1〜最終フレット側
+drawNote(ctx, cxX,      cy, r, pc,  root, getDegreeTextFor(pc,  root, scaleName, degreeMap), labelMode, boardKey, S);
       }
     }
   }
+}
+
+
+
   function drawPositions(){ POSITION_IDS.forEach(id => drawOnePos(id)); }
   POSITION_IDS.forEach(id=>{
     const el = document.getElementById(id);
@@ -576,13 +927,154 @@ function isChordToneInterval(interval){
       toggleHiddenAtPoint(id, el, ev.clientX - rect.left, ev.clientY - rect.top, ()=>drawOnePos(id));
     });
   });
-  document.addEventListener('click', (e)=>{
-    const btn = e.target.closest('.btnClear');
-    if (!btn) return;
-    const id = btn.getAttribute('data-pos');
-    hiddenMap[id].clear();
+// 下段カードの「全表示／全消去」デリゲート
+document.addEventListener('click', (e)=>{
+  const btnShow = e.target.closest('.btnShowAll');
+  if (btnShow){
+    const id = btnShow.getAttribute('data-pos');
+    if (id && hiddenMap[id]){
+      hiddenMap[id].clear();       // 全表示＝非表示マスクを空に
+      drawOnePos(id);
+    }
+    return;
+  }
+  const btnHide = e.target.closest('.btnHideAll');
+  if (btnHide){
+    const id = btnHide.getAttribute('data-pos');
+    if (id && hiddenMap[id]){
+      hideAllPositionsForBoard(id); // 全消去＝全マスを非表示に
+      drawOnePos(id);
+    }
+    return;
+  }
+});
+
+// ==== コピー／ペースト ====
+
+// （新規）メインで実際に非表示となるセル（手動＋スケール外＋コードトーン外）を収集
+function collectEffectiveHiddenForMain(){
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value || '16')));
+  const root = KEYS.indexOf(keySel.value);
+  const { intervals } = SCALES[scaleSel.value];
+  const pcs = new Set(intervals.map(i => (root + i) % 12));
+
+  const effective = new Set(hiddenMap.main); // 手動で隠した分をベースに
+
+  for (let s = 0; s < STRINGS; s++){
+    const openPcBase = N_SHARP.indexOf(TUNING[s]);
+    const openPc = openPcBase % 12;
+
+    // 0フレット（開放）
+    {
+      const k0 = `${s}:0`;
+      const interval0 = (openPc - root + 12) % 12;
+      const forced0 = (window.showMap && showMap.main && showMap.main.has(k0));
+      const visible0 = forced0 || (pcs.has(openPc) && (!chordTonesOnly || isChordToneInterval(interval0)));
+      if (!visible0) effective.add(k0);
+    }
+
+    // 1〜最終フレット
+    for (let f = 1; f <= frets; f++){
+      const pc = (openPcBase + f) % 12;
+      const k  = `${s}:${f}`;
+      const interval = (pc - root + 12) % 12;
+      const forced = (window.showMap && showMap.main && showMap.main.has(k));
+      const visible = forced || (pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)));
+      if (!visible) effective.add(k);
+    }
+  }
+  return effective;
+}
+
+// メインのコピー（実描画ベースの非表示セルを保存）
+document.getElementById('btnCopyMain')?.addEventListener('click', ()=>{
+  const effectiveHidden = collectEffectiveHiddenForMain();
+  clipboardBoard = {
+    key: keySel.value,
+    scale: scaleSel.value,
+    hidden: Array.from(effectiveHidden)
+  };
+  alert('メインをコピーしました');
+});
+
+
+
+// 下段カードのコピー／ペースト（デリゲート）
+document.addEventListener('click', (e)=>{
+  const btnCopy = e.target.closest('.btnCopyBoard');
+  if (btnCopy){
+    const id = btnCopy.getAttribute('data-pos');
+    clipboardBoard = {
+      key: getBoardKey(id),
+      scale: getBoardScale(id),
+      hidden: Array.from(hiddenMap[id])
+    };
+    alert(`${id} をコピーしました`);
+    return;
+  }
+
+  const btnPaste = e.target.closest('.btnPasteBoard');
+  if (btnPaste){
+    if (!clipboardBoard){ alert('コピーされていません'); return; }
+    const id = btnPaste.getAttribute('data-pos');
+    setBoardKey(id, clipboardBoard.key);
+    setBoardScale(id, clipboardBoard.scale);
+    hiddenMap[id] = new Set(clipboardBoard.hidden);
     drawOnePos(id);
+    alert(`${id} にペーストしました`);
+    return;
+  }
+});
+
+
+// 単一ボードの SHIFT（キー±1・非表示マスクを±1フレット移動）
+function shiftBoard(boardId, delta){
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+
+  // 1) 非表示マスクを ±1 フレットに平行移動
+  const src = hiddenMap[boardId];
+  if (!src) return;
+  const dst = new Set();
+  src.forEach(key => {
+    const m = /^(\d+):(\d+)$/.exec(key);
+    if(!m) return;
+    const s = parseInt(m[1], 10);
+    const f2 = parseInt(m[2], 10) + delta;
+    if (f2 < 0 || f2 > frets) return;
+    dst.add(`${s}:${f2}`);
   });
+
+  // ★ 新しく入ってくる端の列を最初から「非表示」に追加
+  if (delta !== 0){
+    const enteringFret = (delta > 0) ? 0 : frets;
+    for (let s = 0; s < STRINGS; s++){
+      dst.add(`${s}:${enteringFret}`);
+    }
+  }
+
+  hiddenMap[boardId] = dst;
+
+  // 2) ボード専用キーを ±1（scale は維持）
+  const curKey = getBoardKey(boardId);
+  let idx = KEYS.indexOf(curKey);
+  if (idx < 0) idx = 0;
+  const nextKey = KEYS[(idx + delta + 12) % 12];
+  setBoardKey(boardId, nextKey);
+
+  // 3) 再描画
+  drawOnePos(boardId);
+}
+
+// 下段カード：SHIFT -1 / +1 のイベントデリゲート
+document.addEventListener('click', (e)=>{
+  const btnShift = e.target.closest('.btnShiftOne');
+  if (!btnShift) return;
+  const id = btnShift.getAttribute('data-pos');
+  const delta = parseInt(btnShift.getAttribute('data-delta')||'0', 10);
+  if (!id || !delta) return;
+  shiftBoard(id, delta);
+});
+
 
   function toggleHiddenAtPoint(mapKey, canvasEl, x, y, rerender){
     const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
@@ -606,11 +1098,26 @@ function isChordToneInterval(interval){
     centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
 
     const key = `${s}:${nearestF}`;
-    const set = hiddenMap[mapKey];
-    if (set.has(key)) set.delete(key); else set.add(key);
+const boardKey   = (mapKey === 'main') ? keySel.value   : getBoardKey(mapKey);
+const boardScale = (mapKey === 'main') ? scaleSel.value : getBoardScale(mapKey);
+const root2 = KEYS.indexOf(boardKey);
+const pcs2 = new Set((SCALES[boardScale] || SCALES['- All Position']).intervals.map(i => (root2 + i) % 12));
+const pc2 = (N_SHARP.indexOf(TUNING[s]) + nearestF) % 12;
+const inScale = pcs2.has(pc2) && (!chordTonesOnly || isChordToneInterval((pc2 - root2 + 12) % 12));
+if (inScale){
+  const set2 = hiddenMap[mapKey];
+  if (set2.has(key)) set2.delete(key); else set2.add(key);
+  if (showMap && showMap[mapKey]) showMap[mapKey].delete(key);
+} else {
+  if (!showMap[mapKey]) showMap[mapKey] = new Set();
+  if (showMap[mapKey].has(key)) showMap[mapKey].delete(key);
+  else { showMap[mapKey].add(key); hiddenMap[mapKey].delete(key); }
+}
 
     (rerender || (()=>{ drawMain(); drawPositions(); }))();
   }
+
+
   // ==== 追加：ドラッグで非表示にする「消しゴム」機能 ====
   function hideAtPoint(mapKey, canvasEl, x, y){
     const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
@@ -718,71 +1225,169 @@ function isChordToneInterval(interval){
     list.forEach(p=>{ const opt = document.createElement('option'); opt.value = p.name; presetNamesDatalist.appendChild(opt); });
   }
   function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
-  function renderPresetDropdown(list){
-    presetList.innerHTML = '';
-    if (!list.length){ presetList.innerHTML = `<div class="empty">（保存されたプリセットはありません）</div>`; return; }
-    const sorted = [...list].sort((a,b)=> b.updatedAt - a.updatedAt);
-    sorted.forEach(p=>{
-      const row = document.createElement('div'); row.className = 'preset-item';
-      const meta = document.createElement('div'); meta.className = 'preset-meta';
-      meta.innerHTML = `<div class="preset-name">${escapeHtml(p.name)}</div>
-        <div class="preset-sub">${escapeHtml(p.meta.key)} / ${escapeHtml(p.meta.scale)} / Frets:${p.meta.frets}${p.meta.labelMode?` / ${escapeHtml(p.meta.labelMode)}`:''}</div>`;
-      const actions = document.createElement('div'); actions.className = 'row-actions';
-      const loadBtn = document.createElement('button'); loadBtn.className='icon-btn'; loadBtn.textContent='読み込む';
-      loadBtn.addEventListener('click', (e)=>{ e.stopPropagation(); applyPreset(p); });
-      const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑'; delBtn.title='削除';
-      delBtn.addEventListener('click', (e)=>{ e.stopPropagation(); if (confirm(`「${p.name}」を削除しますか？`)) deletePresetFromLocal(p.id); });
-      actions.appendChild(loadBtn); actions.appendChild(delBtn);
-      row.appendChild(meta); row.appendChild(actions);
-      row.addEventListener('click', ()=> applyPreset(p));
-      presetList.appendChild(row);
+
+function renderPresetDropdown(list){
+  presetList.innerHTML = '';
+  if (!list.length){
+    presetList.innerHTML = `<div class="empty">（保存されたプリセットはありません）</div>`;
+    return;
+  }
+
+  const sorted = [...list].sort((a,b)=> (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
+  sorted.forEach(p=>{
+    const row = document.createElement('div'); row.className = 'preset-item';
+
+    // ★サブ情報は出さない：名前だけ
+    const meta = document.createElement('div'); meta.className = 'preset-meta';
+    meta.innerHTML = `<div class="preset-name">${escapeHtml(p.name ?? '')}</div>`;
+
+    const actionsWrap = document.createElement('div'); actionsWrap.className = 'row-actions';
+    const loadBtn = document.createElement('button'); loadBtn.className='icon-btn'; loadBtn.textContent='読み込む';
+    loadBtn.addEventListener('click', (e)=>{ e.stopPropagation(); applyPreset(p); });
+
+    const delBtn = document.createElement('button'); delBtn.className='icon-btn'; delBtn.textContent='🗑'; delBtn.title='削除';
+    delBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if (confirm(`「${p.name}」を削除しますか？`)) deletePresetFromLocal(p.id);
+    });
+
+    actionsWrap.appendChild(loadBtn);
+    actionsWrap.appendChild(delBtn);
+
+    row.appendChild(meta);
+    row.appendChild(actionsWrap);
+    row.addEventListener('click', ()=> applyPreset(p));
+
+    presetList.appendChild(row);
+  });
+}
+
+  function loadPresetList(){ const list = lsGet(); renderPresetDropdown(list); renderPresetNameDatalist(list); return list; }
+
+function savePresetToLocal(preset){
+  // v2: 8ボードのみ保存。キー/スケールは保存しない
+  const only8 = {};
+  if (preset.positions && typeof preset.positions === 'object'){
+    POSITION_IDS.forEach(id => {
+      const p = preset.positions[id];
+      if (!p) return;
+      only8[id] = {
+        hidden: Array.isArray(p.hidden) ? p.hidden : [],
+        title:  (typeof p.title === 'string' ? p.title : '')
+      };
+    });
+  } else {
+    // v1 相当が来た場合でも、現状DOMから 8ボードの hidden/title を作る
+    POSITION_IDS.forEach(id => {
+      only8[id] = {
+        hidden: Array.from(hiddenMap[id] || []),
+        title:  (posNameEls[id]?.textContent ?? '').trim()
+      };
     });
   }
-  function loadPresetList(){ const list = lsGet(); renderPresetDropdown(list); renderPresetNameDatalist(list); return list; }
-  function savePresetToLocal(preset){ const list = lsGet(); const idx = list.findIndex(x => x.id === preset.id); if (idx >= 0) list[idx] = preset; else list.push(preset); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = `保存しました: ${preset.name}`; }
+
+  const v2 = {
+    version: 2,
+    id: preset.id,
+    name: preset.name,
+    updatedAt: Date.now(),
+    frets: parseInt(fretSel.value || '16', 10),
+    labelMode: labelModeSel.value,
+    positions: only8
+  };
+
+  const list = lsGet();
+  const idx = list.findIndex(x => x.id === v2.id);
+  if (idx >= 0) list[idx] = v2; else list.push(v2);
+  lsSet(list);
+
+  renderPresetDropdown(list);
+  renderPresetNameDatalist(list);
+  presetMeta.textContent = `保存しました: ${v2.name}（8ボードのみ／キー・スケールは保存しません）`;
+}
+
   function deletePresetFromLocal(id){ const list = lsGet().filter(x => x.id !== id); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = 'プリセットを削除しました'; }
 
-  function currentStateToPreset(name){
-  const meta = { key:keySel.value, scale:scaleSel.value, frets:parseInt(fretSel.value||'16'), labelMode:labelModeSel.value };
-  const hiddenObj = {}; Object.keys(hiddenMap).forEach(k => hiddenObj[k] = Array.from(hiddenMap[k]));
-  // ▼ 7つのポジション名を保存（空白はトリム、空なら現状のテキストをそのまま）
-  const posTitles = {};
+function currentStateToPreset(name){
+  // v2: 8ボードのみ保存。キー/スケールは含めない
+  const positions = {};
   POSITION_IDS.forEach(id => {
-    const el = posNameEls[id];
-    if (!el) return;
-    const txt = (el.textContent ?? '').trim();
-    posTitles[id] = txt;
+    positions[id] = {
+      hidden: Array.from(hiddenMap[id] || []),
+      title: (posNameEls[id]?.textContent ?? '').trim()
+    };
   });
-  return { id: name, name, meta, hidden: hiddenObj, posTitles, updatedAt: Date.now() };
-  }
-  function applyPreset(preset){
-    keySel.value = preset.meta.key;
-    scaleSel.value = preset.meta.scale;
-    fretSel.value = String(preset.meta.frets);
-    if (preset.meta.labelMode) labelModeSel.value = preset.meta.labelMode;
+  const frets = parseInt(fretSel.value || '16', 10);
+  const labelMode = labelModeSel.value;
 
+  return {
+    version: 2,
+    id: name,
+    name,
+    updatedAt: Date.now(),
+    frets,
+    labelMode,
+    positions
+  };
+}
+
+function applyPreset(preset){
+  // v2: { positions:{id:{hidden[],title}}, frets, labelMode } だけ使う
+  if (preset && preset.positions && typeof preset.positions === 'object'){
+    if (typeof preset.frets === 'number')      fretSel.value = String(preset.frets);
+    if (typeof preset.labelMode === 'string')  labelModeSel.value = preset.labelMode;
+
+    // 8ボードの hidden/title だけ反映（キー/スケールは無視）
+    POSITION_IDS.forEach(id => {
+      const p = preset.positions[id];
+      if (!p) return;
+
+      hiddenMap[id].clear();
+      (Array.isArray(p.hidden) ? p.hidden : []).forEach(v => hiddenMap[id].add(v));
+
+      if (posNameEls[id] && typeof p.title === 'string'){
+        const t = p.title.trim();
+        if (t) posNameEls[id].textContent = t;
+      }
+    });
+
+    presetNameInput.value = preset.name || '';
+    drawAll();
+    presetMeta.textContent = `読み込み: ${preset.name}（8ボードの非表示/名称のみ。キー/スケールは無視）`;
+    presetDropdown.open = false;
+    return;
+  }
+
+  // --- v1 後方互換：キー/スケールは無視する ---
+  // frets/labelMode は反映OK
+  if (preset && preset.meta){
+    if (typeof preset.meta.frets === 'number')     fretSel.value = String(preset.meta.frets);
+    if (typeof preset.meta.labelMode === 'string') labelModeSel.value = preset.meta.labelMode;
+    // preset.meta.key / preset.meta.scale は無視
+  }
+  // hidden は従来どおり反映（main/各posともOK）
+  if (preset && preset.hidden){
     Object.keys(hiddenMap).forEach(k=>{
       hiddenMap[k].clear();
       (preset.hidden?.[k] || []).forEach(v=> hiddenMap[k].add(v));
     });
-
-  // ▼ 7つのポジション名を復元（後方互換：posTitles が無ければスキップ）
-  if (preset.posTitles && typeof preset.posTitles === 'object') {
+  }
+  // posTitles もそのまま反映
+  if (preset && preset.posTitles && typeof preset.posTitles === 'object') {
     POSITION_IDS.forEach(id => {
-      const el = posNameEls[id];
-      if (!el) return;
+      const el = posNameEls[id]; if (!el) return;
       const val = preset.posTitles[id];
-      if (typeof val === 'string' && val.trim().length) {
-        el.textContent = val.trim();
-      }
+      if (typeof val === 'string' && val.trim().length) el.textContent = val.trim();
     });
   }
 
-    presetNameInput.value = preset.name;
-    drawAll();
-    presetMeta.textContent = `読み込み: ${preset.name}（キー: ${preset.meta.key} / スケール: ${preset.meta.scale} / フレット: ${preset.meta.frets}）`;
-    presetDropdown.open = false;
-  }
+  presetNameInput.value = preset?.name || '';
+  drawAll();
+  // メタ表記もキー/スケールを出さない
+  presetMeta.textContent = `読み込み: ${preset?.name ?? ''}（キー/スケールは無視）`;
+  presetDropdown.open = false;
+}
 
   // 保存/読込ボタン
   btnSavePreset.addEventListener('click', ()=>{ const name = (presetNameInput.value || '').trim(); if (!name){ alert('プリセット名を入力してください'); presetNameInput.focus(); return; } savePresetToLocal( currentStateToPreset(name) ); });
@@ -814,24 +1419,41 @@ function isChordToneInterval(interval){
     }finally{ importFile.value = ''; }
   });
 
-  /* ===== 入力変更で毎回リセット＆再描画 ===== */
-  function resetHiddenAll(){ Object.keys(hiddenMap).forEach(k => hiddenMap[k].clear()); }
+  /* ===== 入力変更時の挙動（下段はリセットしない） ===== */
   function drawAll(){ syncDPR(); drawMain(); drawPositions(); }
-  ['input','change'].forEach(evt =>
-    [keySel, scaleSel, fretSel, labelModeSel].forEach(el =>
-      el.addEventListener(evt, ()=>{ resetHiddenAll(); drawAll(); })
-    )
-  );
-  window.addEventListener('resize', ()=> drawAll());
+
+  // メインのキー／スケール変更 → メインだけ再描画（下段8ボードは独立のまま）
+  ['input','change'].forEach(evt => {
+    [keySel, scaleSel].forEach(el => {
+      el.addEventListener(evt, () => { drawMain(); });
+    });
+  });
+
+  // フレット数／ラベル表示 → 全体を再描画（非表示マスクは維持）
+  ['input','change'].forEach(evt => {
+    [fretSel, labelModeSel].forEach(el => {
+      el.addEventListener(evt, () => { drawAll(); });
+    });
+  });
+
+  window.addEventListener('resize', () => drawAll());
+
 
    /* 初期表示 */
    (function init(){
      applyDefaultTitles();
+
+
+     // ▼ 下段8ボードを「初期状態＝全ポジション非表示」にセット（メインは対象外）
+     POSITION_IDS.forEach(id => hideAllPositionsForBoard(id));
+
      drawAll();
      loadPresetList();
      bindAllDragErase();
      setDragEraseUI();
    })();
+
+
 
 
 (() => {
@@ -851,33 +1473,29 @@ function isChordToneInterval(interval){
 
  // 画面の「上段指板＋7ポジション」を縦一列で合成（PDF用ライト配色で再描画／各ポジションに小見出し）
 function composeExportCanvas() {
-  const mainCanvas = document.getElementById('fretboard');
-  const ids = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I'];
-  const list = [mainCanvas, ...ids.map(id => document.getElementById(id))].filter(Boolean);
 
-  // 画面の見た目比率を優先（clientWidth/Height）。品質向上のため横幅は2倍に。
+// ▼ 下段8ボードのみ（上段メインは含めない）※欠けていた pos-4-M も含める
+  const ids = ["pos-6-I","pos-6-M","pos-6-P","pos-5-I","pos-5-M","pos-5-P","pos-4-I","pos-4-M"];
+  const list = ids.map(id => document.getElementById(id)).filter(Boolean);
 
+// 出力キャンバスの横幅（品質重視）
   const outW = 3000;
- // ウィンドウ非依存：PDF用は “固定の縦横比” を採用（好みで調整可）
- const MAIN_RATIO = 0.22; // 上段・全体指板の高さ = outW * 0.22
- const POS_RATIO  = 0.18; // 各ポジションの高さ = outW * 0.18
- const scaledHeights = list.map((_, i) =>
-   Math.round(outW * (i === 0 ? MAIN_RATIO : POS_RATIO))
- );
+  const POS_RATIO  = 0.18;                         // 各ポジションの高さ = outW * 0.18
+  const scaledHeights = list.map(() => Math.round(outW * POS_RATIO));
 
   // タイトル領域（コンパクト）
-  const gap = Math.round(outW * 0.0025);           // 0.25%（必要なら 0 に）
+  const gap = Math.round(outW * 0.0025);
   const titleFontPx = Math.round(outW * 0.022);
   const metaFontPx  = Math.round(outW * 0.012);
   const titlePad    = Math.round(outW * 0.016);
   const titleAreaH  = titlePad + titleFontPx + Math.round(metaFontPx * 1.1) + Math.round(titlePad * 0.4);
 
-  // 各ポジション小見出しの高さ（上段＝index 0 は見出しなし）
+  // 各ポジション小見出し（全行に付ける）
   const subFontPx = Math.round(outW * 0.018);
   const subPad    = Math.round(outW * 0.010);
-  const labelHeights = list.map((_, i) => i === 0 ? 0 : (subFontPx + subPad));
+  const labelHeights = list.map(() => (subFontPx + subPad));
 
-  // DOMからポジション名を取得（なければフォールバック）
+  // DOM からポジション名を取得（なければフォールバック）
   const posTitles = ids.map((id, i) => {
     const el = document.querySelector(`.pos-name[data-pos="${id}"]`);
     const txt = (el && el.textContent && el.textContent.trim()) || `タイトル${i+1}`;
@@ -889,10 +1507,7 @@ function composeExportCanvas() {
     + labelHeights.reduce((a,b)=>a+b,0)
     + gap * (list.length - 1);
 
-  // ▼ PDF用ライト配色（要望どおり）
-  // - 指板(board1/2)・フレット線はライト（反転系）
-  // - 弦は黒、ポジション縁（白丸の輪郭）も黒、フレット番号も黒
-  // - 音符の度数色は既存のまま流用
+  // ▼ PDF用ライト配色（反転）
   const LightStyle = (() => {
     const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
     return {
@@ -912,7 +1527,7 @@ function composeExportCanvas() {
     };
   })();
 
-  // ▼ 既存ロジックを使ってライト配色で“再描画”するヘルパ
+// ▼ “ライト配色＋showMap反映＋度数フォールバック”で再描画したスナップショットを作る
   function renderLightSnapshot(targetW, targetH, mapKey){
     const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
     const keySel = document.getElementById('keySelect');
@@ -923,72 +1538,67 @@ function composeExportCanvas() {
     const labelMode = labelModeSel?.value || 'both';
 
     const prevDpr = (typeof dpr!=='undefined'? dpr:1);
-    if (typeof dpr!=='undefined') dpr = 1; // エクスポートはDPR=1固定
+    if (typeof dpr!=='undefined') dpr = 1; // エクスポートは DPR=1 固定
 
     const off = document.createElement('canvas');
     off.width = targetW; off.height = targetH;
     const ctx = off.getContext('2d');
     ctx.setTransform(1,0,0,1,0,0);
 
-    // 板面・フレット・弦などをライト配色で描画
+// 盤面をライト配色で描画
     const g = layoutOn(ctx, off, STRINGS, frets, LightStyle);
 
-// ===== PDF用：既存フレット番号を白で隠してから、太く大きく描き直す =====
-(() => {
-  // 1) 既存番号を「白帯」で隠す（0フレットも含めて左に広げる & 縁取り防止）
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.shadowColor = 'rgba(0,0,0,0)';
-  ctx.lineWidth = 0;
-  ctx.strokeStyle = 'rgba(0,0,0,0)';
-  ctx.fillStyle = '#ffffff'; // PDFの地色が白
-  const fretW   = g.fbW / frets;
-  const extraL  = Math.round(fretW * 0.6);                 // 左に少し余裕
-  const wipeH   = Math.round(g.fbH * 0.03);                // 帯の高さ（調整可）
-  const wipeY = g.fbY + g.fbH + Math.round(g.fbH * 0.01);    // 少し下にずらす（指板より下に白帯を置く）
-  const overscan = 2;                                      // 周囲に2px余分に塗る
-  ctx.fillRect(
-    g.baseX - extraL - overscan,
-    wipeY - overscan,
-    g.fbW + extraL + overscan * 2,
-    wipeH + overscan * 2
-  );
-  ctx.restore();
+// ===== 既存のフレット番号を白帯で消してから大きく再描き =====
+    (() => {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.shadowColor = 'rgba(0,0,0,0)';
+      ctx.lineWidth = 0;
+      ctx.strokeStyle = 'rgba(0,0,0,0)';
+      ctx.fillStyle = '#ffffff'; // 閭梧勹逋ｽ
+      const fretW   = g.fbW / frets;
+      const extraL  = Math.round(fretW * 0.6);
+      const wipeH   = Math.round(g.fbH * 0.03);
+      const wipeY   = g.fbY + g.fbH + Math.round(g.fbH * 0.01);
+      const over    = 2;
+      ctx.fillRect(g.baseX - extraL - over, wipeY - over, g.fbW + extraL + over*2, wipeH + over*2);
+      ctx.restore();
 
-  // 2) 大きい番号を上から描き直す
-  const FRET_FONT_SCALE = 0.6;                             // 好みで 1.2〜2.0
-  const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
-  ctx.font = `700 ${fontPx}px system-ui`;
-  ctx.fillStyle = '#000000';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
+      const FRET_FONT_SCALE = 0.6;
+      const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
+      ctx.font = `700 ${fontPx}px system-ui`;
+      ctx.fillStyle = '#000000';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const y = g.fbY + g.fbH + Math.round(fontPx * 0.10);
+      for (let f = 0; f <= frets; f++) {
+        const cx = (f === 0) ? g.baseX - fretW / 2 : g.baseX + fretW * (f - 0.5);
+        ctx.fillText(String(f), cx, y);
+      }
+    })();
 
-  const y = g.fbY + g.fbH + Math.round(fontPx * 0.10);     // 指板の少し下
-  // 0〜frets を等間隔で再配置（0フレットはナット左側）
-  for (let f = 0; f <= frets; f++) {
-    const cx = (f === 0)
-      ? g.baseX - fretW / 2
-      : g.baseX + fretW * (f - 0.5);
-    ctx.fillText(String(f), cx, y);
-  }
-})();
-    // スケール計算（既存と同じ）
+// スケール計算
     const {intervals, degrees} = SCALES[scaleName];
     const pcs = new Set(intervals.map(i => (root + i) % 12));
     const degreeMap = new Map(); intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
- const NOTE_RADIUS_SCALE = 1.8; // 好みで 1.1〜1.6 などに
- const r = getNoteRadius() * NOTE_RADIUS_SCALE;
+    const NOTE_RADIUS_SCALE = 1.8;
+    const r = getNoteRadius() * NOTE_RADIUS_SCALE;
 
-    // 音符を描画（非表示状態も反映）
+// 強制表示（showMap）を反映して可視判定
     for(let s=0; s<STRINGS; s++){
       const openPc = N_SHARP.indexOf(TUNING[s]);
       const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+
+// 0フレット（開放）
       const pc0 = openPc % 12;
       const k0 = `${s}:0`;
       const interval0 = (pc0 - root + 12) % 12;
-      if (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
-        drawNote(ctx, g.openCx, cy, r, pc0, root, degreeMap.get(pc0), labelMode, keySel.value, LightStyle);
+      const forced0 = (showMap[mapKey] && showMap[mapKey].has(k0));
+      if (forced0 || (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))){
+        drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
       }
+
+      // 1..frets
       for(let f=1; f<=frets; f++){
         const prevX = g.baseX + g.fbW * ((f-1)/frets);
         const thisX = g.baseX + g.fbW * (f/frets);
@@ -996,8 +1606,9 @@ function composeExportCanvas() {
         const pc = (openPc + f) % 12;
         const k = `${s}:${f}`;
         const interval = (pc - root + 12) % 12;
-      if (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
-          drawNote(ctx, cx, cy, r, pc, root, degreeMap.get(pc), labelMode, keySel.value, LightStyle);
+        const forced = (showMap[mapKey] && showMap[mapKey].has(k));
+        if (forced || (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))){
+          drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
         }
       }
     }
@@ -1006,18 +1617,17 @@ function composeExportCanvas() {
     return off;
   }
 
+// 合成キャンバス生成
   const off = document.createElement('canvas');
   off.width = outW;
   off.height = totalH;
- const ctx = off.getContext('2d');
- ctx.clearRect(0, 0, off.width, off.height);
- // 背景を完全な白で塗って透明を無くす
- ctx.save();
- ctx.fillStyle = '#ffffff';
- ctx.fillRect(0, 0, off.width, off.height);
- ctx.restore();
+  const ctx = off.getContext('2d');
+  ctx.clearRect(0, 0, off.width, off.height);
 
-  // タイトル（黒）＋メタ（グレー）※メタは getMetaLine() を使う現行仕様のまま
+// 背景を白で塗る（透明防止）
+  ctx.save(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, off.width, off.height); ctx.restore();
+
+// タイトルとメタ行
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -1027,19 +1637,18 @@ function composeExportCanvas() {
   ctx.fillStyle = '#333333';
   ctx.fillText(getMetaLine(), titlePad, titlePad + titleFontPx + Math.round(metaFontPx * 0.4));
 
-  // 各キャンバスをライト配色で再描画して貼り付け（＋ 小見出し）
+// 各ボード（全8枚）を貼り付け（それぞれに小見出し）
   let yPos = titleAreaH;
   list.forEach((src, i) => {
-    if (i > 0) {
-      ctx.font = `600 ${subFontPx}px system-ui`;
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      ctx.fillText(posTitles[i-1] || `ポジション${i}`, Math.round(outW * 0.01), yPos);
-      yPos += (subFontPx + subPad);
-    }
+// 小見出し
+    ctx.font = `600 ${subFontPx}px system-ui`;
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(posTitles[i] || `ポジション${i+1}`, Math.round(outW * 0.01), yPos);
+    yPos += (subFontPx + subPad);
 
-    const mapKey = (i===0) ? 'main' : ids[i-1]; // 上段は 'main'、以下は各ID
+    const mapKey = ids[i]; // 下段ボードID
     const lightCanvas = renderLightSnapshot(outW, scaledHeights[i], mapKey);
     ctx.drawImage(lightCanvas, 0, yPos);
     yPos += scaledHeights[i];
@@ -1047,9 +1656,7 @@ function composeExportCanvas() {
   });
 
   return off;
-}
-
-  function exportPDF() {
+}function exportPDF() {
     const { jsPDF } = window.jspdf || {};
     if (!jsPDF) { alert('PDFライブラリ（jsPDF）が読み込めていません'); return; }
 
