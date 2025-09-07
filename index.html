@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.1</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.0.2</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -148,6 +148,7 @@ details.dropdown > summary{
     .preset-item{ display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-bottom:1px solid #232735; cursor:pointer; }
     .preset-item:last-child{ border-bottom:none; }
     .preset-item:hover{ background: rgba(255,255,255,0.04); }
+    .preset-item.dragging{ opacity:0.5; }
     .preset-meta{ flex:1; min-width:0; }
     .preset-name{ font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .preset-sub{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -284,6 +285,7 @@ details.dropdown > summary{
     <br>バージョンアップに伴い、V1.0のJSONやプリセットが乱れて表示される場合がございます。ご了承ください。
     <br>
     <br> Ver 2.0.1 Bug Bixed
+    <br> Ver 2.0.2 プリセットの順番をドラッグで入れ替えられるようになりました。
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -1248,15 +1250,49 @@ function renderPresetDropdown(list){
     return;
   }
 
-  const sorted = [...list].sort((a,b)=> (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  // 並び順は localStorage の配列順を尊重（ソートしない）
+  // DnD中に参照できるように id -> object をマップ化
+  const byId = new Map(list.map(p => [String(p.id), p]));
 
-  sorted.forEach(p=>{
-    const row = document.createElement('div'); row.className = 'preset-item';
+  // 各行を生成（draggable対応）
+  list.forEach((p) => {
+    const row = document.createElement('div');
+    row.className = 'preset-item';
+    row.draggable = true;
+    row.dataset.id = String(p.id ?? p.name ?? '');
 
-    // ★サブ情報は出さない：名前だけ
-    const meta = document.createElement('div'); meta.className = 'preset-meta';
+    // ドラッグ開始/終了
+    row.addEventListener('dragstart', (e)=>{
+      row.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', row.dataset.id);
+      // 画像のないドラッグ開始を可能に
+      if (e.dataTransfer.setDragImage) {
+        const img = new Image(); img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'; 
+        e.dataTransfer.setDragImage(img, 0, 0);
+      }
+    });
+    row.addEventListener('dragend', ()=> row.classList.remove('dragging'));
+
+    // ドラッグオーバー：行の前後を判定して入れ替える
+    row.addEventListener('dragover', (e)=>{
+      e.preventDefault();
+      const dragging = presetList.querySelector('.preset-item.dragging');
+      if (!dragging || dragging === row) return;
+      const rect = row.getBoundingClientRect();
+      const offset = e.clientY - rect.top;
+      if (offset > rect.height/2) {
+        row.after(dragging);
+      } else {
+        row.before(dragging);
+      }
+    });
+
+    // 左側（メタ：名前のみ）
+    const meta = document.createElement('div'); 
+    meta.className = 'preset-meta';
     meta.innerHTML = `<div class="preset-name">${escapeHtml(p.name ?? '')}</div>`;
 
+    // 右側アクション
     const actionsWrap = document.createElement('div'); actionsWrap.className = 'row-actions';
     const loadBtn = document.createElement('button'); loadBtn.className='icon-btn'; loadBtn.textContent='読み込む';
     loadBtn.addEventListener('click', (e)=>{ e.stopPropagation(); applyPreset(p); });
@@ -1272,10 +1308,25 @@ function renderPresetDropdown(list){
 
     row.appendChild(meta);
     row.appendChild(actionsWrap);
+
+    // 行クリックで読み込み
     row.addEventListener('click', ()=> applyPreset(p));
 
     presetList.appendChild(row);
   });
+
+  // コンテナ側の dragover を許可（ドロップ可能に）
+  presetList.addEventListener('dragover', (e)=> e.preventDefault(), { once:false });
+
+  // ドロップ時：DOM順から新しい配列順を保存
+  // 複数回 render されてもイベントが増殖しないように先に既存の ondrop を解除
+  presetList.ondrop = null;
+  presetList.addEventListener('drop', ()=>{
+    const ids = Array.from(presetList.querySelectorAll('.preset-item')).map(el => String(el.dataset.id));
+    const newOrder = ids.map(id => byId.get(id)).filter(Boolean);
+    lsSet(newOrder);
+    renderPresetNameDatalist(newOrder);
+  }, { once:true });
 }
 
   function loadPresetList(){ const list = lsGet(); renderPresetDropdown(list); renderPresetNameDatalist(list); return list; }
