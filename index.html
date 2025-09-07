@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.2</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.0.3</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -284,8 +284,8 @@ details.dropdown > summary{
     <br><b><font size="4" color=#00FF00>Ver 2.0.0になりました。多くの改善がされてますので詳しくはReadMeを一読ください。</font></B>
     <br>バージョンアップに伴い、V1.0のJSONやプリセットが乱れて表示される場合がございます。ご了承ください。
     <br>
-    <br> Ver 2.0.1 Bug Bixed
     <br> Ver 2.0.2 プリセットの順番をドラッグで入れ替えられるようになりました。
+    <br> Ver 2.0.3 Bug Bixed
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -462,8 +462,8 @@ details.dropdown > summary{
   /* デフォルトのポジション名 */
   const POSITION_IDS = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I','pos-4-M'];
   const DEFAULT_TITLES = {
-    'pos-6-I':'タイトル１　（例　6弦スタート｜人差し指）等',
-    'pos-6-M':'タイトル２',
+    'pos-6-I':'タイトル１ クリックで変更できます。（例　Ｃメジャースケール）等',
+    'pos-6-M':'タイトル２ （例　6弦スタート｜人差し指）等',
     'pos-6-P':'タイトル３',
     'pos-5-I':'タイトル４',
     'pos-5-M':'タイトル５',
@@ -1488,13 +1488,19 @@ function applyPreset(preset){
   /* ===== 入力変更時の挙動（下段はリセットしない） ===== */
   function drawAll(){ syncDPR(); drawMain(); drawPositions(); }
 
-  // メインのキー／スケール変更 → メインだけ再描画（下段8ボードは独立のまま）
-  ['input','change'].forEach(evt => {
-    [keySel, scaleSel].forEach(el => {
-      el.addEventListener(evt, () => { drawMain(); });
-    });
-  });
+// キー変更 → メインだけ再描画（状態は維持）
+['input','change'].forEach(evt => {
+  keySel.addEventListener(evt, () => { drawMain(); });
+});
 
+// スケール変更 → メインを「全表示」相当でリセットしてから再描画
+['input','change'].forEach(evt => {
+  scaleSel.addEventListener(evt, () => {
+    hiddenMap.main.clear();    // 全表示＝非表示マスクを空に
+    showMap.main?.clear();     // 強制表示もリセット
+    drawMain();
+  });
+});
   // フレット数／ラベル表示 → 全体を再描画（非表示マスクは維持）
   ['input','change'].forEach(evt => {
     [fretSel, labelModeSel].forEach(el => {
