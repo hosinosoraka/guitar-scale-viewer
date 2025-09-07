@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.0</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.0.1</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -283,9 +283,7 @@ details.dropdown > summary{
     <br><b><font size="4" color=#00FF00>Ver 2.0.0になりました。多くの改善がされてますので詳しくはReadMeを一読ください。</font></B>
     <br>バージョンアップに伴い、V1.0のJSONやプリセットが乱れて表示される場合がございます。ご了承ください。
     <br>
-    <br>現在バグが見つかり、修正をしているところです。バグの内容は下記のとおりです。
-    <br>メインボードで、スケール外のポジションをクリックで表示させたあと、全消去を押しても消去されない。
-    <br>メインボードから下段の8ボードに貼り付けたあと、メインボードから貼り付けたスケール外のポジションを表示させたあと、クリックしても非表示にならない。
+    <br> Ver 2.0.1 Bug Bixed
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -645,6 +643,12 @@ const showMap = { main:new Set() }; POSITION_IDS.forEach(id => showMap[id] = new
     }
   }
 
+  function resetBoardState(mapKey, {clearHidden=false, clearForced=false}={}){
+    if (clearHidden) hiddenMap[mapKey]?.clear();
+    if (clearForced) showMap[mapKey]?.clear();
+  }
+
+
 
   /* === コードトーン表示トグル === */
 let chordTonesOnly = false;
@@ -854,12 +858,14 @@ const btnShowAllMain = document.getElementById('btnShowAllMain');
 const btnHideAllMain = document.getElementById('btnHideAllMain');
 
 btnShowAllMain?.addEventListener('click', ()=>{
-  hiddenMap.main.clear(); // 全表示
+hiddenMap.main.clear();      // 全表示＝非表示マスクを空に
+showMap.main?.clear();       // ★ “強制表示”もリセット（表示条件を純粋に）
   drawMain();
 });
 
 btnHideAllMain?.addEventListener('click', ()=>{
-  hideAllPositionsForBoard('main'); // 全消去
+hideAllPositionsForBoard('main'); // 全消去＝全マス非表示
+showMap.main?.clear();            // ★ 強制表示もクリア
   drawMain();
 });
 
@@ -939,6 +945,7 @@ document.addEventListener('click', (e)=>{
     const id = btnShow.getAttribute('data-pos');
     if (id && hiddenMap[id]){
       hiddenMap[id].clear();       // 全表示＝非表示マスクを空に
+      showMap[id]?.clear();      // ★ 下段も強制表示をリセット
       drawOnePos(id);
     }
     return;
@@ -948,6 +955,7 @@ document.addEventListener('click', (e)=>{
     const id = btnHide.getAttribute('data-pos');
     if (id && hiddenMap[id]){
       hideAllPositionsForBoard(id); // 全消去＝全マスを非表示に
+      showMap[id]?.clear();      // ★ 下段の強制表示をクリア
       drawOnePos(id);
     }
     return;
@@ -1025,6 +1033,7 @@ document.addEventListener('click', (e)=>{
     setBoardKey(id, clipboardBoard.key);
     setBoardScale(id, clipboardBoard.scale);
     hiddenMap[id] = new Set(clipboardBoard.hidden);
+    showMap[id]?.clear();        // ★ 既存の強制表示は無効化
     drawOnePos(id);
     alert(`${id} にペーストしました`);
     return;
@@ -1146,6 +1155,7 @@ if (inScale){
     centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
     const key = `${s}:${nearestF}`;
     hiddenMap[mapKey].add(key);
+    if (showMap && showMap[mapKey]) showMap[mapKey].delete(key); // ★ 強制表示は消す
   }
 
   let dragEraseEnabled = false;
