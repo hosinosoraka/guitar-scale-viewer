@@ -537,45 +537,68 @@ details.dropdown > summary{
     // --- Diminished ---
     "Combination Diminished (Half–Whole)": { intervals:[0,1,3,4,6,7,9,10], degrees:["1","b9th","♯9th","3","b5","5","13th","m7"] },
     "Diminished (Whole–Half)":             { intervals:[0,2,3,5,6,8,9,11], degrees:["1","9th","♯9th","11th","b5","b13th","13th","7"] },
+
     // --- Pentatonic / Blues ---
     "Major Pentatonic": { intervals:[0,2,4,7,9],    degrees:["1","9th","3","5","13th"] },
     "Minor Pentatonic": { intervals:[0,3,5,7,10],   degrees:["1","m3","11th","5","m7"] },
-    "Blues":            { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] }
+    "Major Blues Scale": { intervals:[0,2,3,4,7,9], degrees:["1","9th","m3","3","5","13th"] },
+    "Minor Blues Scale": { intervals:[0,3,5,6,7,10], degrees:["1","m3","11th","b5","5","m7"] },
+
+    // --- Jazz Oriented ---
+    "Harmonic Major":       { intervals:[0,2,4,5,7,8,11], degrees:["1","9th","3","11th","5","b13th","7"] },
+    "Double Harmonic Major":{ intervals:[0,1,4,5,7,8,11], degrees:["1","b9th","3","11th","5","b13th","7"] },
+    "Whole Tone Scale":     { intervals:[0,2,4,6,8,10],   degrees:["1","9th","3","#11th","#5","m7"] },
+    "Enigmatic Scale":      { intervals:[0,1,4,6,8,10,11],degrees:["1","b9th","3","#11th","#5","m7","7"] },
+
+    // --- World Scales ---
+    "Japanese Scale (In Sen)": { intervals:[0,1,5,7,10], degrees:["1","b9th","11th","5","m7"] },
+    "Japanese Scale (In)":     { intervals:[0,1,5,7,8],  degrees:["1","b9th","11th","5","b13th"] },
+    "Japanese Scale (Yo)":     { intervals:[0,2,5,7,9],  degrees:["1","9th","11th","5","13th"] },
+    "Persian Scale":           { intervals:[0,1,4,5,6,8,11], degrees:["1","b9th","3","11th","b5","b13th","7"] },
+    "Arabian Scale":           { intervals:[0,2,4,5,6,8,10], degrees:["1","9th","3","11th","b5","b13th","m7"] },
+    "Spanish Gypsy Scale":     { intervals:[0,1,4,5,7,8,10], degrees:["1","b9th","3","11th","5","b13th","m7"] },
+    "Raga Bhairav":            { intervals:[0,1,4,5,7,8,11], degrees:["1","b9th","3","11th","5","b13th","7"] },
+    "Raga Todi":               { intervals:[0,1,3,6,7,8,11], degrees:["1","b9th","m3","#11th","5","b13th","7"] },
+
   };
-
-
 
   
-  // === Scale select grouping (optgroup) ===
-  const SCALE_GROUPS = {
-    "Utility": [
-      "Chromatic Scale (All Notes)"
-    ],
-    "Major (Diatonic Modes)": [
-      "Major (Ionian)", "Dorian", "Phrygian", "Lydian", "Mixolydian",
-      "Natural Minor (Aeolian)", "Locrian"
-    ],
-    "Melodic Minor Modes": [
-      "Melodic Minor", "Dorian b2", "Lydian #5", "Lydian b7(Mixolydian #11)",
-      "Mixolydian b6", "Aeolian b5", "Altered Scale (Super Locrian)"
-    ],
-    "Harmonic Minor Modes": [
-      "Harmonic Minor", "Locrian #6", "Ionian #5", "Dorian #4",
-      "Phrygian Dominant", "Lydian #2", "Super Locrian bb7(Ultralocrian)"
-    ],
-    "Symmetric (Diminished)": [
-      "Combination Diminished (Half–Whole)",
-      "Diminished (Whole–Half)"
-    ],
-    "Pentatonic / Blues": [
-      "Major Pentatonic", "Minor Pentatonic", "Blues"
-    ]
-  };
+// === Scale select grouping (optgroup) ===
+const SCALE_GROUPS = {
+  "Utility": [
+    "Chromatic Scale (All Notes)"
+  ],
+  "Major (Diatonic Modes)": [
+    "Major (Ionian)", "Dorian", "Phrygian", "Lydian", "Mixolydian",
+    "Natural Minor (Aeolian)", "Locrian"
+  ],
+  "Melodic Minor Modes": [
+    "Melodic Minor", "Dorian b2", "Lydian #5", "Lydian b7(Mixolydian #11)",
+    "Mixolydian b6", "Aeolian b5", "Altered Scale (Super Locrian)"
+  ],
+  "Harmonic Minor Modes": [
+    "Harmonic Minor", "Locrian #6", "Ionian #5", "Dorian #4",
+    "Phrygian Dominant", "Lydian #2", "Super Locrian bb7(Ultralocrian)"
+  ],
+  "Symmetric (Diminished)": [
+    "Combination Diminished (Half–Whole)",
+    "Diminished (Whole–Half)"
+  ],
+  "Pentatonic / Blues": [
+    "Major Pentatonic", "Minor Pentatonic", "Blues",
+    "Major Blues Scale", "Minor Blues Scale"
+  ],
+  "Jazz Oriented": [
+    "Harmonic Major", "Double Harmonic Major",
+    "Whole Tone Scale", "Enigmatic Scale"
+  ],
+  "World Scales": [
+    "Japanese Scale (In Sen)", "Japanese Scale (In)", "Japanese Scale (Yo)",
+    "Persian Scale", "Arabian Scale", "Spanish Gypsy Scale",
+    "Raga Bhairav", "Raga Todi"
+  ]
+};
 
-  // 表示名を整える（先頭の "- " を外すだけ／値はSCALESキーのまま）
-  function displayName(name){
-    return String(name || '').replace(/^-\\s*/, '');
-  }
 
   // スケールセレクトを構築
   function populateScaleSelect(scaleSel, groups = SCALE_GROUPS){
@@ -586,8 +609,8 @@ details.dropdown > summary{
       og.label = label;
       keys.forEach(key => {
         const opt = document.createElement('option');
-        opt.value = key;                 // 内部値はSCALESのキー
-        opt.textContent = displayName(key); // 表示は見出しを外す
+        opt.value = key;   // 内部値はSCALESのキー
+        opt.textContent = key; // 表示もキー名そのまま
         og.appendChild(opt);
       });
       scaleSel.appendChild(og);
