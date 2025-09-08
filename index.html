@@ -487,12 +487,12 @@ details.dropdown > summary{
   /* 下段ボードの独立状態（キー／スケール） */
   const BOARD_STATE = {};
   POSITION_IDS.forEach(id => {
-    // 初期状態は必ず All Position（キーは C で固定）
-    BOARD_STATE[id] = { key: 'C', scale: '- All Position' };
+    // 初期状態はChromatic Scale (All Notes)n（キーは C で固定）
+    BOARD_STATE[id] = { key: 'C', scale: 'Chromatic Scale (All Notes)' };
   });
 
   function getBoardKey(id){ return (BOARD_STATE[id] && BOARD_STATE[id].key) || 'C'; }
-  function getBoardScale(id){ return (BOARD_STATE[id] && BOARD_STATE[id].scale) || '- All Position'; }
+  function getBoardScale(id){ return (BOARD_STATE[id] && BOARD_STATE[id].scale) || 'Chromatic Scale (All Notes)'; }
   function setBoardKey(id, key){ if (BOARD_STATE[id]) BOARD_STATE[id].key = key; }
   function setBoardScale(id, scale){ if (BOARD_STATE[id]) BOARD_STATE[id].scale = scale; }
 
@@ -506,7 +506,7 @@ details.dropdown > summary{
   const SCALES = {
 
     // --- 全表示 ---
-    "- All Position": { intervals:[0,1,2,3,4,5,6,7,8,9,10,11], degrees:["1","b9th","9th","m3","3","11th","b5/#11","5","b13","13th","m7","7"] },
+    "Chromatic Scale (All Notes)": { intervals:[0,1,2,3,4,5,6,7,8,9,10,11], degrees:["1","b9th","9th","m3","3","11th","b5/#11","5","b13","13th","m7","7"] },
     // --- Major 系 ---
     "Major (Ionian)": { intervals:[0,2,4,5,7,9,11], degrees:["1","9th","3","11th","5","13th","7"] },
     "Dorian":           { intervals:[0,2,3,5,7,9,10], degrees:["1","9th","m3","11th","5","13th","m7"] },
@@ -549,7 +549,7 @@ details.dropdown > summary{
   // === Scale select grouping (optgroup) ===
   const SCALE_GROUPS = {
     "Utility": [
-      "- All Position"
+      "Chromatic Scale (All Notes)"
     ],
     "Major (Diatonic Modes)": [
       "Major (Ionian)", "Dorian", "Phrygian", "Lydian", "Mixolydian",
@@ -678,9 +678,9 @@ KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textConten
 populateScaleSelect(scaleSel);
 for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
 
-// ★ 起動直後は All Position にする（メイン）
+// ★ 起動直後は Chromatic Scale (All Notes) にする（メイン）
 keySel.value = 'C';
-scaleSel.value = '- All Position';
+scaleSel.value = 'Chromatic Scale (All Notes)';
 fretSel.value = '24';
 
 
@@ -852,11 +852,11 @@ function isChordToneInterval(interval){
     return {pcs, degreeMap};
   }
 
-// スケール外のときは All Position の度数にフォールバック
+// スケール外のときは AChromatic Scale (All Notes) の度数にフォールバック
 function getDegreeTextFor(pc, root, scaleName, degreeMap){
   const interval = (pc - root + 12) % 12;
   if (degreeMap && degreeMap.has(pc)) return degreeMap.get(pc);
-  const ap = SCALES['- All Position'];
+  const ap = SCALES['Chromatic Scale (All Notes)'];
   if (ap && Array.isArray(ap.degrees) && ap.degrees[interval]) return ap.degrees[interval];
   return String(interval); // 念のため
 }
@@ -1185,7 +1185,7 @@ document.addEventListener('click', (e)=>{
 const boardKey   = (mapKey === 'main') ? keySel.value   : getBoardKey(mapKey);
 const boardScale = (mapKey === 'main') ? scaleSel.value : getBoardScale(mapKey);
 const root2 = KEYS.indexOf(boardKey);
-const pcs2 = new Set((SCALES[boardScale] || SCALES['- All Position']).intervals.map(i => (root2 + i) % 12));
+const pcs2 = new Set((SCALES[boardScale] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root2 + i) % 12));
 const pc2 = (N_SHARP.indexOf(TUNING[s]) + nearestF) % 12;
 const inScale = pcs2.has(pc2) && (!chordTonesOnly || isChordToneInterval((pc2 - root2 + 12) % 12));
 if (inScale){
