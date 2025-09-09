@@ -1516,14 +1516,17 @@ renderPresetDropdown(list);
   function deletePresetFromLocal(id){ const list = lsGet().filter(x => x.id !== id); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = 'プリセットを削除しました'; }
 
 function currentStateToPreset(name){
-  // v2: 8ボードのみ保存。キー/スケールは含めない
+  // v2: 8ボードの hidden/title に加え、main と各ボードの key/scale も保存する
   const positions = {};
   POSITION_IDS.forEach(id => {
     positions[id] = {
       hidden: Array.from(hiddenMap[id] || []),
-      title: (posNameEls[id]?.textContent ?? '').trim()
+      title: (posNameEls[id]?.textContent ?? '').trim(),
+      key: getBoardKey(id),
+      scale: getBoardScale(id)
     };
   });
+
   const frets = parseInt(fretSel.value || '16', 10);
   const labelMode = labelModeSel.value;
 
@@ -1534,13 +1537,47 @@ function currentStateToPreset(name){
     updatedAt: Date.now(),
     frets,
     labelMode,
-    positions
+    positions,
+    // ← main（上段）のキー/スケールも出力
+    mainKey: keySel.value,
+    mainScale: scaleSel.value
   };
 }
 
 function applyPreset(preset){
   // v2: { positions:{id:{hidden[],title}}, frets, labelMode } だけ使う
   if (preset && preset.positions && typeof preset.positions === 'object'){
+    // 8ボードの表示状態を初期化（残留show/hiddenを除去）
+    POSITION_IDS.forEach(id => { try{ hiddenMap[id]?.clear(); showMap[id]?.clear(); }catch(e){} });
+
+    // v2形式: mainKey/mainScale or positions[].key/scale の有無を確認、無ければ C/Ionian にフォールバック
+    const hasMainK = (typeof preset.mainKey === 'string');
+    const hasMainS = (typeof preset.mainScale === 'string');
+    let hasAnyPosKS = false;
+    try{
+      for (const pid of Object.keys(preset.positions||{})){
+        const p = preset.positions[pid];
+        if (p && (typeof p.key === 'string' || typeof p.scale === 'string')){ hasAnyPosKS = true; break; }
+      }
+    }catch(_e){}
+    if (!hasMainK && !hasMainS && !hasAnyPosKS){
+      preset.mainKey = 'C';
+      preset.mainScale = 'Major (Ionian)';
+    }
+
+    // MAINへ適用
+    if (typeof preset.mainKey === 'string') keySel.value = preset.mainKey;
+    if (typeof preset.mainScale === 'string') scaleSel.value = preset.mainScale;
+
+    // 各ボードへ適用（無ければ main をフォールバック）
+    POSITION_IDS.forEach(id => {
+      const p = preset.positions[id] || {};
+      const k = (typeof p.key === 'string') ? p.key : (preset.mainKey || keySel.value);
+      const s = (typeof p.scale === 'string') ? p.scale : (preset.mainScale || scaleSel.value);
+      setBoardKey(id, k);
+      setBoardScale(id, s);
+    });
+
     // ▼ メインのキー/スケールがあれば先に反映（互換性: 無ければ現状維持）
     if (typeof preset.mainKey === 'string') keySel.value = preset.mainKey;
     if (typeof preset.mainScale === 'string') scaleSel.value = preset.mainScale;
