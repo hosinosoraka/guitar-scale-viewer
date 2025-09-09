@@ -170,7 +170,13 @@ details.dropdown > summary{
   padding: 10px 12px;  /* 他ボタンと同じ */
 }
 
+
+
+
+  </style>
+
 <style id="preset-tweaks">
+
   /* プリセット名の下のサブ情報を完全に非表示 */
   .preset-sub{ display:none !important; }
 
@@ -218,10 +224,8 @@ details.dropdown > summary{
   min-width:0;
   padding-inline:8px;
 }
+
 </style>
-
-
-  </style>
 </head>
 <body>
 <header>
@@ -1487,9 +1491,7 @@ function savePresetToLocal(preset){
     updatedAt: Date.now(),
     frets: parseInt(fretSel.value || '16', 10),
     labelMode: labelModeSel.value,
-    positions: only8,
-    mainKey: keySel.value,
-    mainScale: scaleSel.value
+    positions: only8
   };
 
   const list = lsGet();
@@ -1515,72 +1517,69 @@ renderPresetDropdown(list);
 
   function deletePresetFromLocal(id){ const list = lsGet().filter(x => x.id !== id); lsSet(list); renderPresetDropdown(list); renderPresetNameDatalist(list); presetMeta.textContent = 'プリセットを削除しました'; }
 
-function currentStateToPreset(name){
-  // v2: 8ボードの hidden/title に加え、main と各ボードの key/scale も保存する
-  const positions = {};
-  POSITION_IDS.forEach(id => {
-    positions[id] = {
-      hidden: Array.from(hiddenMap[id] || []),
-      title: (posNameEls[id]?.textContent ?? '').trim(),
-      key: getBoardKey(id),
-      scale: getBoardScale(id)
-    };
-  });
 
-  const frets = parseInt(fretSel.value || '16', 10);
-  const labelMode = labelModeSel.value;
-
-  return {
-    version: 2,
-    id: name,
-    name,
-    updatedAt: Date.now(),
-    frets,
-    labelMode,
-    positions,
-    // ← main（上段）のキー/スケールも出力
-    mainKey: keySel.value,
-    mainScale: scaleSel.value
-  };
-}
 
 function applyPreset(preset){
-  // v2: { positions:{id:{hidden[],title}}, frets, labelMode } だけ使う
-  if (preset && preset.positions && typeof preset.positions === 'object'){
-    // 8ボードの表示状態を初期化（残留show/hiddenを除去）
-    POSITION_IDS.forEach(id => { try{ hiddenMap[id]?.clear(); showMap[id]?.clear(); }catch(e){} });
+  if (!preset || typeof preset !== 'object') return;
 
-    // v2形式: mainKey/mainScale or positions[].key/scale の有無を確認、無ければ C/Ionian にフォールバック
-    const hasMainK = (typeof preset.mainKey === 'string');
-    const hasMainS = (typeof preset.mainScale === 'string');
-    let hasAnyPosKS = false;
-    try{
-      for (const pid of Object.keys(preset.positions||{})){
-        const p = preset.positions[pid];
-        if (p && (typeof p.key === 'string' || typeof p.scale === 'string')){ hasAnyPosKS = true; break; }
-      }
-    }catch(_e){}
-    if (!hasMainK && !hasMainS && !hasAnyPosKS){
-      preset.mainKey = 'C';
-      preset.mainScale = 'Major (Ionian)';
-    }
-
-    // MAINへ適用
-    if (typeof preset.mainKey === 'string') keySel.value = preset.mainKey;
-    if (typeof preset.mainScale === 'string') scaleSel.value = preset.mainScale;
-
-    // 各ボードへ適用（無ければ main をフォールバック）
+  // v2: positions がオブジェクトなら 8ボードのみを更新（メインのキー/スケールは変更しない）
+  if (preset && preset.positions && typeof preset.positions === 'object') {
+    // 8ボードの show/hidden をリセットしつつ、key/scale/hidden/title を反映
     POSITION_IDS.forEach(id => {
       const p = preset.positions[id] || {};
-      const k = (typeof p.key === 'string') ? p.key : (preset.mainKey || keySel.value);
-      const s = (typeof p.scale === 'string') ? p.scale : (preset.mainScale || scaleSel.value);
+      // key/scale は JSON から。欠落時は現状を維持（メインにも依存しない）
+      const k = (typeof p.key === 'string')   ? p.key   : getBoardKey(id);
+      const s = (typeof p.scale === 'string') ? p.scale : getBoardScale(id);
       setBoardKey(id, k);
       setBoardScale(id, s);
+
+      hiddenMap[id].clear();
+      (Array.isArray(p.hidden) ? p.hidden : []).forEach(v => hiddenMap[id].add(v));
+      showMap[id]?.clear();
+
+      if (posNameEls[id] && typeof p.title === 'string'){
+        const t = p.title.trim();
+        if (t) posNameEls[id].textContent = t;
+      }
     });
 
+    // frets/labelMode（存在する場合）はUIへ反映（キーではない）
+    if (typeof preset.frets === 'number')      fretSel.value = String(preset.frets);
+    if (typeof preset.labelMode === 'string')  labelModeSel.value = preset.labelMode;
+
+    // メインのキー/スケールは preset に関係なく現状を維持する
+    presetNameInput.value = preset.name || '';
+    drawPositions(); // 下段のみ再描画（メインは触らない）
+    presetMeta.textContent = `読み込み: ${preset.name ?? ''}（8ボードの非表示/名称/キー/スケールを復元）`;
+    presetDropdown.open = false;
+    return;
+  }
+
+  // --- v1 後方互換：positions が無い形式（hidden/title などのみ） ---
+  if (preset && preset.hidden){
+    Object.keys(hiddenMap).forEach(k=>{
+      if (k === 'main') return; // メインは変更しない
+      hiddenMap[k].clear();
+      (preset.hidden?.[k] || []).forEach(v=> hiddenMap[k].add(v));
+      showMap[k]?.clear();
+    });
+  }
+  if (preset && preset.posTitles && typeof preset.posTitles === 'object') {
+    POSITION_IDS.forEach(id => {
+      const el = posNameEls[id]; if (!el) return;
+      const val = preset.posTitles[id];
+      if (typeof val === 'string' && val.trim().length) el.textContent = val.trim();
+    });
+  }
+  presetNameInput.value = preset?.name || '';
+  drawPositions(); // 下段のみ
+  presetMeta.textContent = `読み込み: ${preset?.name ?? ''}`;
+  presetDropdown.open = false;
+
+  if (preset && preset.positions && typeof preset.positions === 'object'){
     // ▼ メインのキー/スケールがあれば先に反映（互換性: 無ければ現状維持）
-    if (typeof preset.mainKey === 'string') keySel.value = preset.mainKey;
-    if (typeof preset.mainScale === 'string') scaleSel.value = preset.mainScale;
+    if (typeof preset.mainKey === 'string') 
+    if (typeof preset.mainScale === 'string') 
     // （メイン反映後に）下段へも描画前にキー/スケールを配布（無ければ main を既定に）
     POSITION_IDS.forEach(id => {
       const p = preset.positions[id] || {};
@@ -1947,6 +1946,30 @@ function composeExportCanvas() {
   const btn = document.getElementById('btnExportPdf');
   if (btn) btn.addEventListener('click', exportPDF);
 })();
+function currentStateToPreset(name){
+  // v2: 8ボードの hidden/title/key/scale を保存（メインのキー/スケールは含めない）
+  const positions = {};
+  POSITION_IDS.forEach(id => {
+    positions[id] = {
+      hidden: Array.from(hiddenMap[id] || []),
+      title:  (posNameEls[id]?.textContent ?? '').trim(),
+      key:    getBoardKey(id),
+      scale:  getBoardScale(id)
+    };
+  });
+  const frets = parseInt(fretSel.value || '16', 10);
+  const labelMode = labelModeSel.value;
+  return {
+    version: 2,
+    id: name,
+    name,
+    updatedAt: Date.now(),
+    frets,
+    labelMode,
+    positions
+    // ※ mainKey/mainScale は出力しない（メインは無関係）
+  };
+}
 </script>
 
 
