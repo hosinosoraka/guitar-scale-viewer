@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.7</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.0.8</title>
   <script src="./jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -226,7 +226,7 @@ details.dropdown > summary{
 }
 
 </style>
-  <meta name="google-site-verification" content="bvkaJrhr4P2Lj8VCOsCaoOTBEPPGFsQXAtq2BYEdC9I" />
+<meta name="google-site-verification" content="bvkaJrhr4P2Lj8VCOsCaoOTBEPPGFsQXAtq2BYEdC9I" />
 </head>
 <body>
 <header>
@@ -295,6 +295,7 @@ details.dropdown > summary{
     <br> Ver 2.0.5 Bug Bixed
     <br> Ver 2.0.6 スケール追加、及び、名称とリストの最適化
     <br> Ver 2.0.7 プリセット、及びJSONの保存と読み込みの最適化。
+    <br> Ver 2.0.8 Bug Bixed
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
   </div>
   <div style="text-align:center; margin-top:6px;">
@@ -1221,45 +1222,63 @@ function shiftBoard(boardId, delta){
 }
 
 function toggleHiddenAtPoint(mapKey, canvasEl, x, y, rerender){
-    const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-    const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
-    const M = {left: 120, right: 24, top: 36, bottom: 56};
-    const fbY = M.top, fbH = h - M.top - M.bottom;
-    const baseX = M.left, fbW = w - baseX - M.right;
-    const cellW = fbW / frets;
-    const openCx = baseX - cellW * 0.5;
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+  const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
+  const M = {left: 120, right: 24, top: 36, bottom: 56};
+  const fbY = M.top, fbH = h - M.top - M.bottom;
+  const baseX = M.left, fbW = w - baseX - M.right;
+  const cellW = fbW / frets;
+  const openCx = baseX - cellW * 0.5;
 
-    const sFloat = ((y - fbY) / fbH) * STRINGS - 0.5;
-    let s = Math.round(sFloat); s = Math.min(STRINGS-1, Math.max(0, s));
+  const sFloat = ((y - fbY) / fbH) * STRINGS - 0.5;
+  let s = Math.round(sFloat); s = Math.min(STRINGS-1, Math.max(0, s));
 
-    const centers = [openCx];
-    for (let f=1; f<=frets; f++){
-      const prevX = baseX + fbW * ((f-1)/frets);
-      const thisX = baseX + fbW * (f/frets);
-      centers.push( (prevX + thisX)/2 );
-    }
-    let nearestF = 0, best = Infinity;
-    centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
-
-    const key = `${s}:${nearestF}`;
-const boardKey   = (mapKey === 'main') ? keySel.value   : getBoardKey(mapKey);
-const boardScale = (mapKey === 'main') ? scaleSel.value : getBoardScale(mapKey);
-const root2 = KEYS.indexOf(boardKey);
-const pcs2 = new Set((SCALES[boardScale] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root2 + i) % 12));
-const pc2 = (N_SHARP.indexOf(TUNING[s]) + nearestF) % 12;
-const inScale = pcs2.has(pc2) && (!chordTonesOnly || isChordToneInterval((pc2 - root2 + 12) % 12));
-if (inScale){
-  const set2 = hiddenMap[mapKey];
-  if (set2.has(key)) set2.delete(key); else set2.add(key);
-  if (showMap && showMap[mapKey]) showMap[mapKey].delete(key);
-} else {
-  if (!showMap[mapKey]) showMap[mapKey] = new Set();
-  if (showMap[mapKey].has(key)) showMap[mapKey].delete(key);
-  else { showMap[mapKey].add(key); hiddenMap[mapKey].delete(key); }
-}
-
-    (rerender || (()=>{ drawMain(); drawPositions(); }))();
+  const centers = [openCx];
+  for (let f=1; f<=frets; f++){
+    const prevX = baseX + fbW * ((f-1)/frets);
+    const thisX = baseX + fbW * (f/frets);
+    centers.push((prevX + thisX)/2);
   }
+  let nearestF = 0, best = Infinity;
+  centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
+
+  const key = `${s}:${nearestF}`;
+
+  // そのボード（メイン or 下段）の key/scale を取得
+  const boardKey   = (mapKey === 'main') ? keySel.value   : getBoardKey(mapKey);
+  const boardScale = (mapKey === 'main') ? scaleSel.value : getBoardScale(mapKey);
+  const root = KEYS.indexOf(boardKey);
+  const pcs  = new Set((SCALES[boardScale] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root + i) % 12));
+
+  const pc = (N_SHARP.indexOf(TUNING[s]) + nearestF) % 12;
+  const inScale = pcs.has(pc);
+  const interval = (pc - root + 12) % 12;
+  const isChord  = isChordToneInterval(interval);
+
+  const H = hiddenMap[mapKey];
+  const F = showMap[mapKey] || (showMap[mapKey] = new Set());
+
+  if (mapKey !== 'main') {
+    // ▼ 下段：常に hiddenMap でトグル（chordTonesOnly は無視）
+    if (inScale){
+      if (H.has(key)) H.delete(key); else H.add(key);
+      F.delete(key);                     // 念のため強制表示は消す
+    }
+  } else {
+    // ▼ メイン：chordTonesOnly=ON かつ 非コードトーンだけ、例外表示に showMap を使う
+    if (!inScale) {
+      // メインはスケール外は描画しない：何もしない
+    } else if (chordTonesOnly && !isChord) {
+      if (F.has(key)) F.delete(key); else F.add(key);  // 例外表示トグル
+      H.delete(key);                                   // 隠しは外しておく
+    } else {
+      if (H.has(key)) H.delete(key); else H.add(key);  // 通常のトグル
+      F.delete(key);
+    }
+  }
+
+  (rerender || (()=>{ drawMain(); drawPositions(); }))();
+}
 
 
   // ==== 追加：ドラッグで非表示にする「消しゴム」機能 ====
