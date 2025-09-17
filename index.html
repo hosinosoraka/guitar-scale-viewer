@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Guitar Scales and Fretboard Editor Ver 2.0.8</title>
-  <script src="./jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
       /* Dark (default) palette */
@@ -470,7 +470,6 @@ details.dropdown > summary{
 </main>
 
 <script>
-  if (typeof window.showMap === 'undefined') window.showMap = {};
 /* ===== 基本設定 ===== */
   const STRINGS = 6;
   const NOTE_RADIUS = 18;  // PC
@@ -728,7 +727,7 @@ btnToggleChord?.addEventListener('click', () => {
   chordTonesOnly = !chordTonesOnly;
   btnToggleChord.textContent = chordTonesOnly ? 'コードトーン再表示' : 'コードトーンのみ表示';
   // 下段8ボードは影響させない：メインのみ再描画
-  drawMain();
+  autoHideOutOfScaleMain(); rebuildMainHiddenFromLayers(); drawMain();
 });
 
 
@@ -757,11 +756,20 @@ fretSel.value = '24';
 
   // 非表示セット（メインは空、下段は初期状態で「全ポジション非表示」）
   const hiddenMap = { main:new Set() }; POSITION_IDS.forEach(id=> hiddenMap[id]=new Set());
+const pinnedVisibleMain = new Set();
 
-// 強制表示（showMap）の初期化
-const showMap = { main:new Set() }; POSITION_IDS.forEach(id => showMap[id] = new Set());
 
-  // コピー＆ペースト用クリップボード
+const ruleHiddenMain = new Set();
+const userHiddenMain = new Set();
+
+
+function rebuildMainHiddenFromLayers(){
+  const ruleMinusPinned = [];
+  ruleHiddenMain.forEach(k => { if (!pinnedVisibleMain.has(k)) ruleMinusPinned.push(k); });
+  hiddenMap.main = new Set([...ruleMinusPinned, ...userHiddenMain]);
+}
+
+// コピー＆ペースト用クリップボード
   let clipboardBoard = null;
 
 
@@ -779,7 +787,6 @@ const showMap = { main:new Set() }; POSITION_IDS.forEach(id => showMap[id] = new
 
   function resetBoardState(mapKey, {clearHidden=false, clearForced=false}={}){
     if (clearHidden) hiddenMap[mapKey]?.clear();
-    if (clearForced) showMap[mapKey]?.clear();
   }
 
 
@@ -790,6 +797,43 @@ function isChordToneInterval(interval){
   return interval === 0 || interval === 3 || interval === 4 || interval === 7 || interval === 10 || interval === 11;
 }
 
+// === スケール判定ユーティリティ（メイン用） ===
+function isInScaleForMain(s, f){
+  const keyName = keySel.value;
+  const scaleName = scaleSel.value;
+  const root = KEYS.indexOf(keyName);
+  const pcs = new Set((SCALES[scaleName] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root + i) % 12));
+  const pc = (N_SHARP.indexOf(TUNING[s]) + f) % 12;
+  return pcs.has(pc);
+}
+function isChordAllowedForMain(s, f){
+  if (!chordTonesOnly) return true;
+  const keyName = keySel.value;
+  const root = KEYS.indexOf(keyName);
+  const pc = (N_SHARP.indexOf(TUNING[s]) + f) % 12;
+  const interval = (pc - root + 12) % 12;
+  return isChordToneInterval(interval);
+}
+function isVisibleByScaleRule_Main(s, f){
+  return isInScaleForMain(s,f) && isChordAllowedForMain(s,f);
+}
+
+function autoHideOutOfScaleMain(){
+  ruleHiddenMain.clear();
+  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
+  for (let s=0; s<STRINGS; s++){
+    for (let f=0; f<=frets; f++){
+      const k = s + ":" + f;
+      const shouldBeHidden = !isVisibleByScaleRule_Main(s,f);
+      if (shouldBeHidden){
+        if (!pinnedVisibleMain.has(k)) ruleHiddenMain.add(k);
+      }
+    }
+  }
+  // 再構築: 規定の隠す ∪ ユーザーの隠す
+  rebuildMainHiddenFromLayers();
+}
+/* ===== 共通描画ユーティリティ ===== */
 /* ===== 共通描画ユーティリティ ===== */
   const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   function styleSnapshot(){
@@ -840,16 +884,16 @@ function isChordToneInterval(interval){
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
     if (mode === 'note'){
-      ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
+      ctx.font = "700 " + Math.round(r*0.75) + "px system-ui";
       ctx.fillText(noteName, cx, cy);
     } else if (mode === 'degree'){
-      ctx.font = `bold ${Math.round(r*0.75)}px system-ui`;
+      ctx.font = "700 " + Math.round(r*0.75) + "px system-ui";
       ctx.fillText(degreeText || '', cx, cy);
     } else {
       const dy = r * LABEL_OFFSET_FACTOR;
-      ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
+      ctx.font = "700 " + Math.round(r*0.68) + "px system-ui";
       ctx.fillText(degreeText || '', cx, cy - dy);
-      ctx.font = `bold ${Math.round(r*0.68)}px system-ui`;
+      ctx.font = "700 " + Math.round(r*0.68) + "px system-ui";
       ctx.fillText(noteName,       cx, cy + dy);
     }
   }
@@ -947,10 +991,9 @@ function getDegreeTextFor(pc, root, scaleName, degreeMap){
       const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
 
 const pc0 = openPc % 12;
-const k0 = `${s}:0`;
+const k0 = s + ":0";
 const interval0 = (pc0 - root + 12) % 12;
-const forced0 = (showMap.main && showMap.main.has(k0));
-if (forced0 || (!hiddenMap.main.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))) {
+if (!hiddenMap.main.has(k0)) {
 // 0フレット（開放）側
 drawNote(mainCtx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keySel.value, S);
 }
@@ -960,10 +1003,9 @@ drawNote(mainCtx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleN
         const thisX = g.baseX + g.fbW * (f/frets);
         const cx = (prevX + thisX)/2;
 const pc = (openPc + f) % 12;
-const k = `${s}:${f}`;
+const k = s + ":" + f;
 const interval = (pc - root + 12) % 12;
-const forced = (showMap.main && showMap.main.has(k));
-if (forced || (!hiddenMap.main.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))) {
+if (!hiddenMap.main.has(k)) {
 // 1〜最終フレット側
 drawNote(mainCtx, cx,       cy, r, pc,  root, getDegreeTextFor(pc,  root, scaleName, degreeMap), labelMode, keySel.value, S);
 }
@@ -993,13 +1035,11 @@ const btnHideAllMain = document.getElementById('btnHideAllMain');
 
 btnShowAllMain?.addEventListener('click', ()=>{
 hiddenMap.main.clear();      // 全表示＝非表示マスクを空に
-showMap.main?.clear();       // ★ “強制表示”もリセット（表示条件を純粋に）
   drawMain();
 });
 
 btnHideAllMain?.addEventListener('click', ()=>{
 hideAllPositionsForBoard('main'); // 全消去＝全マス非表示
-showMap.main?.clear();            // ★ 強制表示もクリア
   drawMain();
 });
 
@@ -1040,9 +1080,8 @@ function drawOnePos(canvasId){
 
     // 0フレット（開放）
     const pc0 = openPc % 12;
-    const k0 = `${s}:0`;
-    const forced0 = (showMap[canvasId] && showMap[canvasId].has(k0));
-if (forced0 || (!hiddenMap[canvasId].has(k0) && pcs.has(pc0))) {
+    const k0 = s + ":0";
+    if (!hiddenMap[canvasId].has(k0)) {
 drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, boardKey, S);
     }
 
@@ -1052,9 +1091,8 @@ drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName,
       const thisX = g.baseX + g.fbW * (f / frets);
       const cxX = (prevX + thisX) / 2;
       const pc = (openPc + f) % 12;
-      const k = `${s}:${f}`;
-      const forced = (showMap[canvasId] && showMap[canvasId].has(k));
-if (forced || (!hiddenMap[canvasId].has(k) && pcs.has(pc))) {
+      const k = s + ":" + f;
+      if (!hiddenMap[canvasId].has(k)) {
 // 1〜最終フレット側
 drawNote(ctx, cxX,      cy, r, pc,  root, getDegreeTextFor(pc,  root, scaleName, degreeMap), labelMode, boardKey, S);
       }
@@ -1079,7 +1117,6 @@ document.addEventListener('click', (e)=>{
     const id = btnShow.getAttribute('data-pos');
     if (id && hiddenMap[id]){
       hiddenMap[id].clear();       // 全表示＝非表示マスクを空に
-      showMap[id]?.clear();      // ★ 下段も強制表示をリセット
       drawOnePos(id);
     }
     return;
@@ -1089,7 +1126,6 @@ document.addEventListener('click', (e)=>{
     const id = btnHide.getAttribute('data-pos');
     if (id && hiddenMap[id]){
       hideAllPositionsForBoard(id); // 全消去＝全マスを非表示に
-      showMap[id]?.clear();      // ★ 下段の強制表示をクリア
       drawOnePos(id);
     }
     return;
@@ -1108,37 +1144,7 @@ document.addEventListener('click', (e)=>{
 
 // （新規）メインで実際に非表示となるセル（手動＋スケール外＋コードトーン外）を収集
 function collectEffectiveHiddenForMain(){
-  const frets = Math.max(12, Math.min(24, parseInt(fretSel.value || '16')));
-  const root = KEYS.indexOf(keySel.value);
-  const { intervals } = SCALES[scaleSel.value];
-  const pcs = new Set(intervals.map(i => (root + i) % 12));
-
-  const effective = new Set(hiddenMap.main); // 手動で隠した分をベースに
-
-  for (let s = 0; s < STRINGS; s++){
-    const openPcBase = N_SHARP.indexOf(TUNING[s]);
-    const openPc = openPcBase % 12;
-
-    // 0フレット（開放）
-    {
-      const k0 = `${s}:0`;
-      const interval0 = (openPc - root + 12) % 12;
-      const forced0 = (window.showMap && showMap.main && showMap.main.has(k0));
-      const visible0 = forced0 || (pcs.has(openPc) && (!chordTonesOnly || isChordToneInterval(interval0)));
-      if (!visible0) effective.add(k0);
-    }
-
-    // 1〜最終フレット
-    for (let f = 1; f <= frets; f++){
-      const pc = (openPcBase + f) % 12;
-      const k  = `${s}:${f}`;
-      const interval = (pc - root + 12) % 12;
-      const forced = (window.showMap && showMap.main && showMap.main.has(k));
-      const visible = forced || (pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)));
-      if (!visible) effective.add(k);
-    }
-  }
-  return effective;
+  return new Set(hiddenMap.main);
 }
 
 // メインのコピー（実描画ベースの非表示セルを保存）
@@ -1175,7 +1181,6 @@ document.addEventListener('click', (e)=>{
     setBoardKey(id, clipboardBoard.key);
     setBoardScale(id, clipboardBoard.scale);
     hiddenMap[id] = new Set(clipboardBoard.hidden);
-    showMap[id]?.clear();        // ★ 既存の強制表示は無効化
     drawOnePos(id);
     alert(`${id} にペーストしました`);
     return;
@@ -1237,51 +1242,32 @@ function toggleHiddenAtPoint(mapKey, canvasEl, x, y, rerender){
   for (let f=1; f<=frets; f++){
     const prevX = baseX + fbW * ((f-1)/frets);
     const thisX = baseX + fbW * (f/frets);
-    centers.push((prevX + thisX)/2);
+    centers.push( (prevX + thisX)/2 );
   }
   let nearestF = 0, best = Infinity;
   centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
-
   const key = `${s}:${nearestF}`;
-
-  // そのボード（メイン or 下段）の key/scale を取得
-  const boardKey   = (mapKey === 'main') ? keySel.value   : getBoardKey(mapKey);
-  const boardScale = (mapKey === 'main') ? scaleSel.value : getBoardScale(mapKey);
-  const root = KEYS.indexOf(boardKey);
-  const pcs  = new Set((SCALES[boardScale] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root + i) % 12));
-
-  const pc = (N_SHARP.indexOf(TUNING[s]) + nearestF) % 12;
-  const inScale = pcs.has(pc);
-  const interval = (pc - root + 12) % 12;
-  const isChord  = isChordToneInterval(interval);
-
-  const H = hiddenMap[mapKey];
-  const F = showMap[mapKey] || (showMap[mapKey] = new Set());
-
-  if (mapKey !== 'main') {
-    // ▼ 下段：常に hiddenMap でトグル（chordTonesOnly は無視）
-    if (inScale){
-      if (H.has(key)) H.delete(key); else H.add(key);
-      F.delete(key);                     // 念のため強制表示は消す
-    }
-  } else {
-    // ▼ メイン：chordTonesOnly=ON かつ 非コードトーンだけ、例外表示に showMap を使う
-    if (!inScale) {
-      // メインはスケール外は描画しない：何もしない
-    } else if (chordTonesOnly && !isChord) {
-      if (F.has(key)) F.delete(key); else F.add(key);  // 例外表示トグル
-      H.delete(key);                                   // 隠しは外しておく
+  // === 可視トグル ===
+  if (mapKey === 'main'){
+    const inUser = userHiddenMain.has(key);
+    const inRule = ruleHiddenMain.has(key);
+    const inHidden = hiddenMap.main.has(key);
+    if (inHidden){
+      if (inUser){ userHiddenMain.delete(key); }
+      else if (inRule){ pinnedVisibleMain.add(key); }
     } else {
-      if (H.has(key)) H.delete(key); else H.add(key);  // 通常のトグル
-      F.delete(key);
+      userHiddenMain.add(key);
+      pinnedVisibleMain.delete(key);
     }
+    rebuildMainHiddenFromLayers();
+  } else {
+    const setHidden = hiddenMap[mapKey];
+    if (setHidden.has(key)) setHidden.delete(key); else setHidden.add(key);
   }
 
   (rerender || (()=>{ drawMain(); drawPositions(); }))();
 }
-
-
-  // ==== 追加：ドラッグで非表示にする「消しゴム」機能 ====
+// ==== 追加：ドラッグで非表示にする「消しゴム」機能 ====
   function hideAtPoint(mapKey, canvasEl, x, y){
     const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
     const w = canvasEl.width / dpr, h = canvasEl.height / dpr;
@@ -1303,8 +1289,13 @@ function toggleHiddenAtPoint(mapKey, canvasEl, x, y, rerender){
     let nearestF = 0, best = Infinity;
     centers.forEach((cx, i) => { const d = Math.abs(cx - x); if (d < best){ best = d; nearestF = i; } });
     const key = `${s}:${nearestF}`;
-    hiddenMap[mapKey].add(key);
-    if (showMap && showMap[mapKey]) showMap[mapKey].delete(key); // ★ 強制表示は消す
+    if (mapKey === 'main'){
+      userHiddenMain.add(key);
+      pinnedVisibleMain.delete(key);
+      rebuildMainHiddenFromLayers();
+    } else {
+      hiddenMap[mapKey].add(key);
+    }
   }
 
   let dragEraseEnabled = false;
@@ -1555,7 +1546,6 @@ function applyPreset(preset){
 
       hiddenMap[id].clear();
       (Array.isArray(p.hidden) ? p.hidden : []).forEach(v => hiddenMap[id].add(v));
-      showMap[id]?.clear();
 
       if (posNameEls[id] && typeof p.title === 'string'){
         const t = p.title.trim();
@@ -1581,7 +1571,6 @@ function applyPreset(preset){
       if (k === 'main') return; // メインは変更しない
       hiddenMap[k].clear();
       (preset.hidden?.[k] || []).forEach(v=> hiddenMap[k].add(v));
-      showMap[k]?.clear();
     });
   }
   if (preset && preset.posTitles && typeof preset.posTitles === 'object') {
@@ -1698,22 +1687,16 @@ function applyPreset(preset){
 
 // キー変更 → メインだけ再描画（状態は維持）
 ['input','change'].forEach(evt => {
-  keySel.addEventListener(evt, () => { drawMain(); });
+  keySel.addEventListener(evt, () => { pinnedVisibleMain.clear(); userHiddenMain.clear(); ruleHiddenMain.clear(); autoHideOutOfScaleMain(); drawMain(); });
 });
 
 // スケール変更 → メインを「全表示」相当でリセットしてから再描画
 ['input','change'].forEach(evt => {
-  scaleSel.addEventListener(evt, () => {
-    hiddenMap.main.clear();    // 全表示＝非表示マスクを空に
-    showMap.main?.clear();     // 強制表示もリセット
-    drawMain();
-  });
+  scaleSel.addEventListener(evt, () => { pinnedVisibleMain.clear(); userHiddenMain.clear(); ruleHiddenMain.clear(); autoHideOutOfScaleMain(); drawMain(); });
 });
   // フレット数／ラベル表示 → 全体を再描画（非表示マスクは維持）
   ['input','change'].forEach(evt => {
-    [fretSel, labelModeSel].forEach(el => {
-      el.addEventListener(evt, () => { drawAll(); });
-    });
+    [fretSel, labelModeSel].forEach(el => { el.addEventListener(evt, () => { drawAll(); autoHideOutOfScaleMain(); rebuildMainHiddenFromLayers(); drawMain(); }); });
   });
 
   window.addEventListener('resize', () => drawAll());
@@ -1727,16 +1710,11 @@ function applyPreset(preset){
      // ▼ 下段8ボードを「初期状態＝全ポジション非表示」にセット（メインは対象外）
      POSITION_IDS.forEach(id => hideAllPositionsForBoard(id));
 
-     drawAll();
+     drawAll(); autoHideOutOfScaleMain(); rebuildMainHiddenFromLayers(); drawMain();
      loadPresetList();
      bindAllDragErase();
      setDragEraseUI();
-   })();
-
-
-
-
-(() => {
+   })();(() => {
   // A4縦・余白5mmに1ページでフィット
   const PAGE_MM = { w: 210, h: 297, margin: 5 };
 
@@ -1807,7 +1785,6 @@ function composeExportCanvas() {
     };
   })();
 
-// ▼ “ライト配色＋showMap反映＋度数フォールバック”で再描画したスナップショットを作る
   function renderLightSnapshot(targetW, targetH, mapKey){
     const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
     const keySel = document.getElementById('keySelect');
@@ -1846,7 +1823,7 @@ function composeExportCanvas() {
 
       const FRET_FONT_SCALE = 0.6;
       const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
-      ctx.font = `700 ${fontPx}px system-ui`;
+      ctx.font = "700 " + fontPx + "px system-ui";
       ctx.fillStyle = '#000000';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
@@ -1864,17 +1841,15 @@ function composeExportCanvas() {
     const NOTE_RADIUS_SCALE = 1.8;
     const r = getNoteRadius() * NOTE_RADIUS_SCALE;
 
-// 強制表示（showMap）を反映して可視判定
     for(let s=0; s<STRINGS; s++){
       const openPc = N_SHARP.indexOf(TUNING[s]);
       const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
 
 // 0フレット（開放）
       const pc0 = openPc % 12;
-      const k0 = `${s}:0`;
+      const k0 = s + ":0";
       const interval0 = (pc0 - root + 12) % 12;
-      const forced0 = (showMap[mapKey] && showMap[mapKey].has(k0));
-      if (forced0 || (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))){
+if (forced0 || (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))){
         drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
       }
 
@@ -1884,10 +1859,9 @@ function composeExportCanvas() {
         const thisX = g.baseX + g.fbW * (f/frets);
         const cx = (prevX + thisX)/2;
         const pc = (openPc + f) % 12;
-        const k = `${s}:${f}`;
+        const k = s + ":" + f;
         const interval = (pc - root + 12) % 12;
-        const forced = (showMap[mapKey] && showMap[mapKey].has(k));
-        if (forced || (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))){
+if (forced || (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))){
           drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
         }
       }
@@ -1911,16 +1885,16 @@ function composeExportCanvas() {
   ctx.fillStyle = '#000000';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.font = `700 ${titleFontPx}px system-ui`;
+  ctx.font = "700 " + titleFontPx + "px system-ui";
   ctx.fillText(getPresetTitle(), titlePad, titlePad);
-  ctx.font = `500 ${metaFontPx}px system-ui`;
+  ctx.font = "500 " + metaFontPx + "px system-ui";
   ctx.fillStyle = '#333333';
 
 // 各ボード（全8枚）を貼り付け（それぞれに小見出し）
   let yPos = titleAreaH;
   list.forEach((src, i) => {
 // 小見出し
-    ctx.font = `600 ${subFontPx}px system-ui`;
+    ctx.font = "600 " + subFontPx + "px system-ui";
     ctx.fillStyle = '#000000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
