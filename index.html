@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.8</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.0.9</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -296,6 +296,7 @@ details.dropdown > summary{
     <br> Ver 2.0.6 スケール追加、及び、名称とリストの最適化
     <br> Ver 2.0.7 プリセット、及びJSONの保存と読み込みの最適化。
     <br> Ver 2.0.8 Bug Bixed
+    <br> Ver 2.0.9 Bug Bixed
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
   </div>
   <div style="text-align:center; margin-top:6px;">
@@ -1785,91 +1786,102 @@ function composeExportCanvas() {
     };
   })();
 
-  function renderLightSnapshot(targetW, targetH, mapKey){
-    const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
-    const keySel = document.getElementById('keySelect');
-    const scaleSel = document.getElementById('scaleSelect');
-    const labelModeSel = document.getElementById('labelMode');
-    const root = KEYS.indexOf(keySel?.value || 'C');
-    const scaleName = scaleSel?.value || '- Major (Ionian)';
-    const labelMode = labelModeSel?.value || 'both';
+function renderLightSnapshot(targetW, targetH, mapKey){
+  const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
+  const keyName   = document.getElementById('keySelect')?.value || 'C';
+  const scaleName = document.getElementById('scaleSelect')?.value || 'Major (Ionian)';
+  const labelMode = document.getElementById('labelMode')?.value || 'both';
+  const root = KEYS.indexOf(keyName);
 
-    const prevDpr = (typeof dpr!=='undefined'? dpr:1);
-    if (typeof dpr!=='undefined') dpr = 1; // エクスポートは DPR=1 固定
+  const prevDpr = (typeof dpr!=='undefined'? dpr:1);
+  if (typeof dpr!=='undefined') dpr = 1; // エクスポートは DPR=1 固定
 
-    const off = document.createElement('canvas');
-    off.width = targetW; off.height = targetH;
-    const ctx = off.getContext('2d');
-    ctx.setTransform(1,0,0,1,0,0);
+  const off = document.createElement('canvas');
+  off.width = targetW; off.height = targetH;
+  const ctx = off.getContext('2d');
+  ctx.setTransform(1,0,0,1,0,0);
 
-// 盤面をライト配色で描画
-    const g = layoutOn(ctx, off, STRINGS, frets, LightStyle);
+  // PDF用ライト配色
+  const LightStyle = (() => {
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    return {
+      board1:'#f2f4f8', board2:'#e8ecf3',
+      nut:'#222',
+      fret:'#c3c9d6',
+      string:'#000000',
+      posBorder:'#000000',
+      labelInk:'#000000',
+      muted:'#000000',
+      degRoot:css('--deg-root'),
+      degThird:css('--deg-third'),
+      degFifth:css('--deg-fifth'),
+      degSeventh:css('--deg-seventh'),
+      degOther:css('--deg-other'),
+      degBlues:css('--deg-blues'),
+    };
+  })();
 
-// ===== 既存のフレット番号を白帯で消してから大きく再描き =====
-    (() => {
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.shadowColor = 'rgba(0,0,0,0)';
-      ctx.lineWidth = 0;
-      ctx.strokeStyle = 'rgba(0,0,0,0)';
-      ctx.fillStyle = '#ffffff'; // 閭梧勹逋ｽ
-      const fretW   = g.fbW / frets;
-      const extraL  = Math.round(fretW * 0.6);
-      const wipeH   = Math.round(g.fbH * 0.03);
-      const wipeY   = g.fbY + g.fbH + Math.round(g.fbH * 0.01);
-      const over    = 2;
-      ctx.fillRect(g.baseX - extraL - over, wipeY - over, g.fbW + extraL + over*2, wipeH + over*2);
-      ctx.restore();
+  const g = layoutOn(ctx, off, STRINGS, frets, LightStyle);
 
-      const FRET_FONT_SCALE = 0.6;
-      const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
-      ctx.font = "700 " + fontPx + "px system-ui";
-      ctx.fillStyle = '#000000';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      const y = g.fbY + g.fbH + Math.round(fontPx * 0.10);
-      for (let f = 0; f <= frets; f++) {
-        const cx = (f === 0) ? g.baseX - fretW / 2 : g.baseX + fretW * (f - 0.5);
-        ctx.fillText(String(f), cx, y);
-      }
-    })();
+  // フレット番号帯を白で拭ってから大きく描き直し
+  (() => {
+    ctx.save();
+    const fretW = g.fbW / frets;
+    const wipeH = Math.round(g.fbH * 0.03);
+    const wipeY = g.fbY + g.fbH + Math.round(g.fbH * 0.01);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(g.baseX - Math.round(fretW*0.6) - 2, wipeY - 2, g.fbW + Math.round(fretW*0.6)*2 + 4, wipeH + 4);
+    ctx.restore();
 
-// スケール計算
-    const {intervals, degrees} = SCALES[scaleName];
-    const pcs = new Set(intervals.map(i => (root + i) % 12));
-    const degreeMap = new Map(); intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
-    const NOTE_RADIUS_SCALE = 1.8;
-    const r = getNoteRadius() * NOTE_RADIUS_SCALE;
+    const FRET_FONT_SCALE = 0.6;
+    const fontPx = Math.round(g.fbH * 0.10 * FRET_FONT_SCALE);
+    ctx.font = "700 " + fontPx + "px system-ui";
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const y = g.fbY + g.fbH + Math.round(fontPx * 0.10);
+    for (let f = 0; f <= frets; f++) {
+      const cx = (f === 0) ? g.baseX - fretW / 2 : g.baseX + fretW * (f - 0.5);
+      ctx.fillText(String(f), cx, y);
+    }
+  })();
 
-    for(let s=0; s<STRINGS; s++){
-      const openPc = N_SHARP.indexOf(TUNING[s]);
-      const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
+  // スケール情報
+  const {intervals, degrees} = SCALES[scaleName];
+  const pcs = new Set(intervals.map(i => (root + i) % 12));
+  const degreeMap = new Map(); intervals.forEach((i, idx)=> degreeMap.set((root + i) % 12, degrees[idx]));
+  const NOTE_RADIUS_SCALE = 1.8;
+  const r = getNoteRadius() * NOTE_RADIUS_SCALE;
 
-// 0フレット（開放）
-      const pc0 = openPc % 12;
-      const k0 = s + ":0";
-      const interval0 = (pc0 - root + 12) % 12;
-if (forced0 || (!hiddenMap[mapKey].has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0)))){
-        drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
-      }
+  for(let s=0; s<STRINGS; s++){
+    const openPc = N_SHARP.indexOf(TUNING[s]);
+    const cy = g.fbY + g.fbH * (s+0.5)/STRINGS;
 
-      // 1..frets
-      for(let f=1; f<=frets; f++){
-        const prevX = g.baseX + g.fbW * ((f-1)/frets);
-        const thisX = g.baseX + g.fbW * (f/frets);
-        const cx = (prevX + thisX)/2;
-        const pc = (openPc + f) % 12;
-        const k = s + ":" + f;
-        const interval = (pc - root + 12) % 12;
-if (forced || (!hiddenMap[mapKey].has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval)))){
-          drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keySel?.value || 'C', LightStyle);
-        }
-      }
+    // 0フレット（開放）
+    const pc0 = openPc % 12;
+    const k0 = s + ":0";
+    const interval0 = (pc0 - root + 12) % 12;
+    if (!hiddenMap[mapKey]?.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
+      drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
     }
 
-    if (typeof dpr!=='undefined') dpr = prevDpr;
-    return off;
+    // 1..frets
+    for(let f=1; f<=frets; f++){
+      const prevX = g.baseX + g.fbW * ((f-1)/frets);
+      const thisX = g.baseX + g.fbW * (f/frets);
+      const cx = (prevX + thisX)/2;
+      const pc = (openPc + f) % 12;
+      const k = s + ":" + f;
+      const interval = (pc - root + 12) % 12;
+      if (!hiddenMap[mapKey]?.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
+        drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
+      }
+    }
   }
+
+  if (typeof dpr!=='undefined') dpr = prevDpr;
+  return off;
+}
 
 // 合成キャンバス生成
   const off = document.createElement('canvas');
