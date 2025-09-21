@@ -1,7 +1,7 @@
-# Guitar Scale Viewer
+# Guitar Scales and Fretboard Editor
 
 ## 概要
-**Guitar Scale Viewer** は、ギターの指板上に任意のスケールを表示・編集できる可視化ツールです。  
+**Guitar Scales and Fretboard Editor** は、ギターの指板上に任意のスケールを表示・編集できる可視化ツールです。  
 作曲、即興（アドリブ）、スケール学習、練習資料の作成に役立ちます。  
 ブラウザ上で完結し、追加のインストールは不要です。  
 
