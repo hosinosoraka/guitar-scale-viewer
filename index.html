@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.1.0</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.1.1</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -307,6 +307,7 @@ details.dropdown > summary{
     <br> Ver 2.0.8 Bug Bixed
     <br> Ver 2.0.9 Bug Bixed
     <br> Ver 2.1.0 音名の#とbを切り替えられるようになりました。
+    <br> Ver 2.1.1 クリックで表示非表示したポジションがPDFのに反映されないバグを修正しました。
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
   </div>
   <div style="text-align:center; margin-top:6px;">
@@ -1926,7 +1927,7 @@ function renderLightSnapshot(targetW, targetH, mapKey){
     const pc0 = openPc % 12;
     const k0 = s + ":0";
     const interval0 = (pc0 - root + 12) % 12;
-    if (!hiddenMap[mapKey]?.has(k0) && pcs.has(pc0) && (!chordTonesOnly || isChordToneInterval(interval0))){
+    if (!hiddenMap[mapKey]?.has(k0)) {
       drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
     }
 
@@ -1938,7 +1939,7 @@ function renderLightSnapshot(targetW, targetH, mapKey){
       const pc = (openPc + f) % 12;
       const k = s + ":" + f;
       const interval = (pc - root + 12) % 12;
-      if (!hiddenMap[mapKey]?.has(k) && pcs.has(pc) && (!chordTonesOnly || isChordToneInterval(interval))){
+      if (!hiddenMap[mapKey]?.has(k)) {
         drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
       }
     }
