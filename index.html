@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.0.9</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.1.0</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -247,7 +247,16 @@ details.dropdown > summary{
         <option value="both" selected>両方</option>
       </select>
     </div>
+    
+    <!-- ▼ 追加：♯/♭ の表記切替 -->
     <div>
+      <label for="accidentalMode">表記</label>
+      <select id="accidentalMode">
+        <option value="sharp" selected>♯</option>
+        <option value="flat">♭</option>
+      </select>
+    </div>
+<div>
       <label for="fretCount">フレット数（12〜24）</label>
       <select id="fretCount"></select>
     </div>
@@ -297,6 +306,7 @@ details.dropdown > summary{
     <br> Ver 2.0.7 プリセット、及びJSONの保存と読み込みの最適化。
     <br> Ver 2.0.8 Bug Bixed
     <br> Ver 2.0.9 Bug Bixed
+    <br> Ver 2.1.0 音名の#とbを切り替えられるようになりました。
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
   </div>
   <div style="text-align:center; margin-top:6px;">
@@ -511,6 +521,27 @@ details.dropdown > summary{
   const N_SHARP = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const N_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
   const KEYS    = [...N_SHARP];
+// === 表記モード（♯ / ♭） ===
+let accidentalMode = 'sharp'; // 'sharp' | 'flat'
+
+function getNoteNames(){
+  return (accidentalMode === 'flat') ? N_FLAT : N_SHARP;
+}
+function getKeyList(){
+  return getNoteNames();
+}
+// 名前を現在表記へ変換（C#↔Db など）
+function getNoteListIndexSafe(name){
+  const i1 = N_SHARP.indexOf(name); if (i1 >= 0) return i1;
+  const i2 = N_FLAT.indexOf(name);  if (i2 >= 0) return i2;
+  return -1;
+}
+function toCurrentSpelling(name){
+  let idx = getNoteListIndexSafe(name);
+  if (idx < 0) idx = 0;
+  return getNoteNames()[idx];
+}
+
   const SCALES = {
 
     // --- 全表示 ---
@@ -667,6 +698,29 @@ const TUNING = ["E","B","G","D","A","E"]; // 1弦→6弦
   const resetHiddenMain = document.getElementById('resetHiddenMain');
   const mainCanvas = document.getElementById('fretboard');
   const mainCtx = mainCanvas.getContext('2d');
+  const accidentalSel = document.getElementById('accidentalMode');
+
+  function remapAllKeysToCurrentSpelling(){
+    // メイン
+    const currentMain = keySel.value;
+    const pc = getNoteListIndexSafe(currentMain);
+    populateKeySelect();
+    keySel.value = (pc >= 0 ? getNoteNames()[pc] : getNoteNames()[0]);
+    // 下段8ボード
+    POSITION_IDS.forEach(id => {
+      const cur = getBoardKey(id);
+      setBoardKey(id, toCurrentSpelling(cur));
+    });
+  }
+
+  accidentalSel?.addEventListener('change', (e)=>{
+    accidentalMode = e.target.value === 'flat' ? 'flat' : 'sharp';
+    remapAllKeysToCurrentSpelling();
+    autoHideOutOfScaleMain();
+    rebuildMainHiddenFromLayers();
+    drawAll();
+  });
+
 
   const presetNameInput = document.getElementById('presetName');
   const presetNamesDatalist = document.getElementById('presetNames');
@@ -708,12 +762,14 @@ function shiftPositionsMask(delta){
   });
 }
 
-  function stepKey(delta){
-    const keys = KEYS;
-    let idx = keys.indexOf(keySel.value);
-    if (idx < 0) idx = 0;
-    keySel.value = keys[(idx + delta + 12) % 12];
-  }
+  
+function stepKey(delta){
+  const list = getKeyList();
+  let idx = list.indexOf(keySel.value);
+  if (idx < 0) idx = 0;
+  keySel.value = list[(idx + delta + 12) % 12];
+}
+
   function onPosShift(delta){
     shiftPositionsMask(delta); // シェイプを物理的に1フレット移動
     stepKey(delta);            // UIのキーも ±1 進める
@@ -738,8 +794,18 @@ btnToggleChord?.addEventListener('click', () => {
   document.querySelectorAll('.pos-name').forEach(el => { posNameEls[el.dataset.pos] = el; });
 
 // セレクト初期化
-KEYS.forEach(k=>{ const o=document.createElement('option'); o.value=o.textContent=k; keySel.appendChild(o); });
-populateScaleSelect(scaleSel);
+
+function populateKeySelect(){
+  keySel.innerHTML='';
+  getKeyList().forEach(k=>{
+    const o=document.createElement('option');
+    o.value=o.textContent=k;
+    keySel.appendChild(o);
+  });
+}
+populateKeySelect();
+populateScaleSelect
+(scaleSel);
 for (let f=12; f<=24; f++){ const o=document.createElement('option'); o.value=String(f); o.textContent=String(f); fretSel.appendChild(o); }
 
 // ★ 起動直後は Chromatic Scale (All Notes) にする（メイン）
@@ -802,7 +868,7 @@ function isChordToneInterval(interval){
 function isInScaleForMain(s, f){
   const keyName = keySel.value;
   const scaleName = scaleSel.value;
-  const root = KEYS.indexOf(keyName);
+  const root = getKeyList().indexOf(keyName);
   const pcs = new Set((SCALES[scaleName] || SCALES['Chromatic Scale (All Notes)']).intervals.map(i => (root + i) % 12));
   const pc = (N_SHARP.indexOf(TUNING[s]) + f) % 12;
   return pcs.has(pc);
@@ -810,7 +876,7 @@ function isInScaleForMain(s, f){
 function isChordAllowedForMain(s, f){
   if (!chordTonesOnly) return true;
   const keyName = keySel.value;
-  const root = KEYS.indexOf(keyName);
+  const root = getKeyList().indexOf(keyName);
   const pc = (N_SHARP.indexOf(TUNING[s]) + f) % 12;
   const interval = (pc - root + 12) % 12;
   return isChordToneInterval(interval);
@@ -873,8 +939,7 @@ function autoHideOutOfScaleMain(){
   function drawNote(ctx, cx, cy, r, pc, root, degreeText, mode, keyName, S){
     const interval = (pc - root + 12) % 12;
     const fill = degreeColor(interval, S);
-    const flats = ['F','Bb','Eb','Ab','Db','Gb','Cb'].includes(keyName);
-    const noteName = (flats?N_FLAT:N_SHARP)[pc];
+    const noteName = getNoteNames()[pc];
 
     ctx.fillStyle = fill;
     ctx.strokeStyle = S.posBorder;
@@ -974,7 +1039,7 @@ function getDegreeTextFor(pc, root, scaleName, degreeMap){
   /* ===== 上段描画 ===== */
   function drawMain(){
     const frets = Math.max(12, Math.min(24, parseInt(fretSel.value||'16')));
-    const root = KEYS.indexOf(keySel.value);
+    const root = getKeyList().indexOf(keySel.value);
     const scaleName = scaleSel.value;
     const labelMode = labelModeSel.value;
 
@@ -1056,7 +1121,7 @@ function drawOnePos(canvasId){
   const boardKey = getBoardKey(canvasId);
   const boardScale = getBoardScale(canvasId);
 
-  const root = KEYS.indexOf(boardKey);
+  const root = getKeyList().indexOf(boardKey);
   const scaleName = boardScale;
   const labelMode = labelModeSel.value;
 
@@ -1218,7 +1283,7 @@ function shiftBoard(boardId, delta){
 
   // 2) ボード専用キーを ±1（scale は維持）
   const curKey = getBoardKey(boardId);
-  let idx = KEYS.indexOf(curKey);
+  let idx = getKeyList().indexOf(curKey);
   if (idx < 0) idx = 0;
   const nextKey = KEYS[(idx + delta + 12) % 12];
   setBoardKey(boardId, nextKey);
@@ -1791,7 +1856,7 @@ function renderLightSnapshot(targetW, targetH, mapKey){
   const keyName   = document.getElementById('keySelect')?.value || 'C';
   const scaleName = document.getElementById('scaleSelect')?.value || 'Major (Ionian)';
   const labelMode = document.getElementById('labelMode')?.value || 'both';
-  const root = KEYS.indexOf(keyName);
+  const root = getKeyList().indexOf(keyName);
 
   const prevDpr = (typeof dpr!=='undefined'? dpr:1);
   if (typeof dpr!=='undefined') dpr = 1; // エクスポートは DPR=1 固定
