@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.1.1</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.1.2</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -252,8 +252,8 @@ details.dropdown > summary{
     <div>
       <label for="accidentalMode">表記</label>
       <select id="accidentalMode">
-        <option value="sharp" selected>♯</option>
-        <option value="flat">♭</option>
+        <option value="sharp">♯</option>
+        <option value="flat" selected>♭</option>
       </select>
     </div>
 <div>
@@ -308,6 +308,7 @@ details.dropdown > summary{
     <br> Ver 2.0.9 Bug Bixed
     <br> Ver 2.1.0 音名の#とbを切り替えられるようになりました。
     <br> Ver 2.1.1 クリックで表示非表示したポジションがPDFのに反映されないバグを修正しました。
+    <br> Ver 2.1.2 #とbの表記を個別に設定できるように変更。
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
   </div>
   <div style="text-align:center; margin-top:6px;">
@@ -373,7 +374,9 @@ details.dropdown > summary{
   <button data-pos="pos-6-I" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-6-I" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-6-I" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-6-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-6-I" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-6-I" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
 
       </div>
       <canvas class="pos-canvas" id="pos-6-I"></canvas>
@@ -388,7 +391,9 @@ details.dropdown > summary{
   <button data-pos="pos-6-M" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-6-M" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-6-M" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-6-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-6-M" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-6-M" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-6-M"></canvas>
     </div>
@@ -402,7 +407,9 @@ details.dropdown > summary{
   <button data-pos="pos-6-P" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-6-P" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-6-P" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-6-P" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-6-P" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-6-P" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-6-P"></canvas>
     </div>
@@ -416,7 +423,9 @@ details.dropdown > summary{
   <button data-pos="pos-5-I" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-5-I" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-5-I" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-5-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-5-I" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-5-I" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-5-I"></canvas>
     </div>
@@ -430,7 +439,9 @@ details.dropdown > summary{
   <button data-pos="pos-5-M" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-5-M" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-5-M" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-5-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-5-M" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-5-M" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-5-M"></canvas>
     </div>
@@ -444,7 +455,9 @@ details.dropdown > summary{
   <button data-pos="pos-5-P" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-5-P" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-5-P" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-5-P" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-5-P" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-5-P" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-5-P"></canvas>
     </div>
@@ -458,7 +471,9 @@ details.dropdown > summary{
   <button data-pos="pos-4-I" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-4-I" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-4-I" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-4-I" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-4-I" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-4-I" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-4-I"></canvas>
     </div>
@@ -472,7 +487,9 @@ details.dropdown > summary{
   <button data-pos="pos-4-M" class="icon-btn btnShowAll">全表示</button>
   <button data-pos="pos-4-M" class="icon-btn btnHideAll">全消去</button>
   <button data-pos="pos-4-M" class="icon-btn btnCopyBoard">コピー</button>
-  <button data-pos="pos-4-M" class="icon-btn btnPasteBoard">ペースト</button></div>
+  <button data-pos="pos-4-M" class="icon-btn btnPasteBoard">ペースト</button>
+  <button data-pos="pos-4-M" class="icon-btn btnAccToggle">表記: ♭</button>
+</div>
       </div>
       <canvas class="pos-canvas" id="pos-4-M"></canvas>
     </div>
@@ -492,7 +509,11 @@ details.dropdown > summary{
 
   /* デフォルトのポジション名 */
   const POSITION_IDS = ['pos-6-I','pos-6-M','pos-6-P','pos-5-I','pos-5-M','pos-5-P','pos-4-I','pos-4-M'];
-  const DEFAULT_TITLES = {
+  
+  // 各ポジション専用の表記(♯/♭)モードを保持（初期は現在のグローバル accidentalMode）
+  const BOARD_ACCIDENTAL = {};
+  POSITION_IDS.forEach(id => { BOARD_ACCIDENTAL[id] = (typeof globalThis.accidentalMode === 'string' ? globalThis.accidentalMode : 'flat'); });
+const DEFAULT_TITLES = {
     'pos-6-I':'タイトル１ クリックで変更できます。（例　Ｃメジャースケール）等',
     'pos-6-M':'タイトル２ （例　6弦スタート｜人差し指）等',
     'pos-6-P':'タイトル３',
@@ -523,7 +544,7 @@ details.dropdown > summary{
   const N_FLAT  = ["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"];
   const KEYS    = [...N_SHARP];
 // === 表記モード（♯ / ♭） ===
-let accidentalMode = 'sharp'; // 'sharp' | 'flat'
+let accidentalMode = 'flat'; // 'sharp' | 'flat'
 
 function getNoteNames(){
   return (accidentalMode === 'flat') ? N_FLAT : N_SHARP;
@@ -937,10 +958,11 @@ function autoHideOutOfScaleMain(){
     if (i===6) return S.degBlues;
     return S.degOther;
   }
-  function drawNote(ctx, cx, cy, r, pc, root, degreeText, mode, keyName, S){
+  function drawNote(ctx, cx, cy, r, pc, root, degreeText, mode, keyName, S, noteNamesOpt){
     const interval = (pc - root + 12) % 12;
     const fill = degreeColor(interval, S);
-    const noteName = getNoteNames()[pc];
+    const noteNames = noteNamesOpt || getNoteNames();
+    const noteName = noteNames[pc];
 
     ctx.fillStyle = fill;
     ctx.strokeStyle = S.posBorder;
@@ -1122,7 +1144,9 @@ function drawOnePos(canvasId){
   const boardKey = getBoardKey(canvasId);
   const boardScale = getBoardScale(canvasId);
 
-  const root = getKeyList().indexOf(boardKey);
+  const root = getNoteListIndexSafe(boardKey);
+  const localMode = BOARD_ACCIDENTAL[canvasId] || 'flat';
+  const noteNamesLocal = (localMode === 'flat') ? N_FLAT : N_SHARP;
   const scaleName = boardScale;
   const labelMode = labelModeSel.value;
 
@@ -1149,7 +1173,7 @@ function drawOnePos(canvasId){
     const pc0 = openPc % 12;
     const k0 = s + ":0";
     if (!hiddenMap[canvasId].has(k0)) {
-drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, boardKey, S);
+drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, boardKey, S, noteNamesLocal);
     }
 
     // 1〜最終フレット
@@ -1161,7 +1185,7 @@ drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName,
       const k = s + ":" + f;
       if (!hiddenMap[canvasId].has(k)) {
 // 1〜最終フレット側
-drawNote(ctx, cxX,      cy, r, pc,  root, getDegreeTextFor(pc,  root, scaleName, degreeMap), labelMode, boardKey, S);
+drawNote(ctx, cxX, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, boardKey, S, noteNamesLocal);
       }
     }
   }
@@ -1220,7 +1244,8 @@ document.getElementById('btnCopyMain')?.addEventListener('click', ()=>{
   clipboardBoard = {
     key: keySel.value,
     scale: scaleSel.value,
-    hidden: Array.from(effectiveHidden)
+    hidden: Array.from(effectiveHidden),
+    accidental: (typeof accidentalMode === 'string' ? accidentalMode : 'flat')
   };
   alert('メインをコピーしました');
 });
@@ -1235,7 +1260,8 @@ document.addEventListener('click', (e)=>{
     clipboardBoard = {
       key: getBoardKey(id),
       scale: getBoardScale(id),
-      hidden: Array.from(hiddenMap[id])
+      hidden: Array.from(hiddenMap[id]),
+      accidental: (BOARD_ACCIDENTAL && BOARD_ACCIDENTAL[id]) || 'flat'
     };
     alert(`${id} をコピーしました`);
     return;
@@ -1248,6 +1274,22 @@ document.addEventListener('click', (e)=>{
     setBoardKey(id, clipboardBoard.key);
     setBoardScale(id, clipboardBoard.scale);
     hiddenMap[id] = new Set(clipboardBoard.hidden);
+
+    // accidental apply
+    if (clipboardBoard.accidental){
+      if (typeof BOARD_ACCIDENTAL !== 'undefined') BOARD_ACCIDENTAL[id] = clipboardBoard.accidental;
+      // adjust key spelling to accidental
+      try{
+        let idx = getNoteListIndexSafe(clipboardBoard.key);
+        if (idx < 0) idx = 0;
+        const newName = (clipboardBoard.accidental === 'flat') ? N_FLAT[idx] : N_SHARP[idx];
+        setBoardKey(id, newName);
+      }catch(_){}
+      // update button label if present
+      const btn = document.querySelector(`.btnAccToggle[data-pos="${id}"]`);
+      if (btn) btn.textContent = '表記: ' + (clipboardBoard.accidental === 'flat' ? '♭' : '♯');
+    }
+
     drawOnePos(id);
     alert(`${id} にペーストしました`);
     return;
@@ -1854,10 +1896,20 @@ function composeExportCanvas() {
 
 function renderLightSnapshot(targetW, targetH, mapKey){
   const frets = Math.max(12, Math.min(24, parseInt((document.getElementById('fretCount')?.value)||'16')));
-  const keyName   = document.getElementById('keySelect')?.value || 'C';
-  const scaleName = document.getElementById('scaleSelect')?.value || 'Major (Ionian)';
+  let keyName   = document.getElementById('keySelect')?.value || 'C';
+  let scaleName = document.getElementById('scaleSelect')?.value || 'Major (Ionian)';
   const labelMode = document.getElementById('labelMode')?.value || 'both';
-  const root = getKeyList().indexOf(keyName);
+  // If mapKey is a lower-board id, use that board's key/scale
+  try{
+    if (typeof getBoardKey==='function' && typeof getBoardScale==='function' && Array.isArray(POSITION_IDS) && POSITION_IDS.includes(mapKey)){
+      keyName = getBoardKey(mapKey);
+      scaleName = getBoardScale(mapKey);
+    }
+  }catch(_){/* fallback to main */}
+  const root = (typeof getNoteListIndexSafe==='function') ? getNoteListIndexSafe(keyName) : getKeyList().indexOf(keyName);
+  // Per-board accidental (sharp/flat)
+  const localAcc = (typeof BOARD_ACCIDENTAL!=='undefined' && BOARD_ACCIDENTAL[mapKey]) || (typeof globalThis.accidentalMode==='string' ? globalThis.accidentalMode : 'flat');
+  const noteNamesLocal = (localAcc === 'flat') ? N_FLAT : N_SHARP;
 
   const prevDpr = (typeof dpr!=='undefined'? dpr:1);
   if (typeof dpr!=='undefined') dpr = 1; // エクスポートは DPR=1 固定
@@ -1928,7 +1980,7 @@ function renderLightSnapshot(targetW, targetH, mapKey){
     const k0 = s + ":0";
     const interval0 = (pc0 - root + 12) % 12;
     if (!hiddenMap[mapKey]?.has(k0)) {
-      drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
+      drawNote(ctx, g.openCx, cy, r, pc0, root, getDegreeTextFor(pc0, root, scaleName, degreeMap), labelMode, keyName, LightStyle, noteNamesLocal);
     }
 
     // 1..frets
@@ -1940,7 +1992,7 @@ function renderLightSnapshot(targetW, targetH, mapKey){
       const k = s + ":" + f;
       const interval = (pc - root + 12) % 12;
       if (!hiddenMap[mapKey]?.has(k)) {
-        drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keyName, LightStyle);
+        drawNote(ctx, cx, cy, r, pc, root, getDegreeTextFor(pc, root, scaleName, degreeMap), labelMode, keyName, LightStyle, noteNamesLocal);
       }
     }
   }
@@ -2146,5 +2198,32 @@ function currentStateToPreset(name){
   }
 })();
 </script>
+
+<script>
+// 下段「表記: ♭/♯」トグル
+document.addEventListener('click', function(e){
+  const t = e.target.closest('.btnAccToggle'); if (!t) return;
+  const id = t.getAttribute('data-pos'); if (!id) return;
+  const cur = (BOARD_ACCIDENTAL && BOARD_ACCIDENTAL[id]) || 'flat';
+  const next = (cur === 'flat') ? 'sharp' : 'flat';
+  BOARD_ACCIDENTAL[id] = next;
+
+  // ボタン表示更新
+  t.textContent = '表記: ' + (next === 'flat' ? '♭' : '♯');
+
+  // ボードのキー名の表記も合わせる（C# <-> Db など）
+  if (typeof getBoardKey === 'function' && typeof setBoardKey === 'function' && typeof getNoteListIndexSafe === 'function'){
+    const k = getBoardKey(id);
+    let idx = getNoteListIndexSafe(k);
+    if (idx < 0) idx = 0;
+    const newName = (next === 'flat') ? N_FLAT[idx] : N_SHARP[idx];
+    setBoardKey(id, newName);
+  }
+
+  // 再描画
+  if (typeof drawOnePos === 'function') drawOnePos(id);
+});
+</script>
+
 </body>
 </html>
