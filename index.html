@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Guitar Scales and Fretboard Editor Ver 2.1.2</title>
+  <title>Guitar Scales and Fretboard Editor Ver 2.1.3</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -310,6 +310,8 @@ details.dropdown > summary{
     <br> Ver 2.1.1 クリックで表示非表示したポジションがPDFのに反映されないバグを修正しました。
     <br> Ver 2.1.2 #とbの表記を個別に設定できるように変更。
     <br>           既存のプリセットやJSONが正常に読み込めない場合があります。
+    <br> Ver 2.1.3 SHIFT機能のバグを修正。
+
   </div>
   <div style="text-align:center; margin-top:6px;">
     <a href="https://github.com/hosinosoraka/guitar-scale-viewer/blob/main/README.md"
@@ -1324,12 +1326,25 @@ function shiftBoard(boardId, delta){
 
   hiddenMap[boardId] = dst;
 
-  // 2) ボード専用キーを ±1（scale は維持）
+  // ▼▼▼ 修正箇所：キー計算ロジックの改善 ▼▼▼
+  
+  // 2) ボード専用キーを ±1
   const curKey = getBoardKey(boardId);
-  let idx = getKeyList().indexOf(curKey);
-  if (idx < 0) idx = 0;
-  const nextKey = KEYS[(idx + delta + 12) % 12];
+  
+  // 安全なヘルパーを使ってインデックス(0-11)を取得（現在の表記に関わらず正確な音程を取得）
+  let idx = getNoteListIndexSafe(curKey);
+  if (idx < 0) idx = 0; 
+
+  // 新しいインデックスを計算
+  const newIdx = (idx + delta + 12) % 12;
+
+  // 「そのボードの設定(♯/♭)」に合わせて次のキー名を取得する
+  const localMode = (BOARD_ACCIDENTAL && BOARD_ACCIDENTAL[boardId]) || 'flat';
+  const targetList = (localMode === 'flat') ? N_FLAT : N_SHARP;
+  const nextKey = targetList[newIdx];
+
   setBoardKey(boardId, nextKey);
+  // ▲▲▲ 修正ここまで ▲▲▲
 
   // 3) 再描画
   drawOnePos(boardId);
